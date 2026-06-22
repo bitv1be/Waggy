@@ -62,7 +62,7 @@ jobs:
           keyPassword: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload to RuStore
-        uses: suro4ek/rustore-action@v1
+        uses: suro4ek/rustore-action@v0.0.1
         with:
           key_id: ${{ secrets.RUSTORE_KEY_ID }}
           private_key: ${{ secrets.RUSTORE_PRIVATE_KEY }}

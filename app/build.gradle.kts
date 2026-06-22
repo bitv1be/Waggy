@@ -1,27 +1,35 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
 import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
-
     alias(libs.plugins.kotlin.compiler)
 }
 
 val env = Properties().apply {
-    val envFile = rootProject.file(".env")
-    if (envFile.exists()) {
-        load(FileInputStream(envFile))
-    }
+    rootProject.file(".env").takeIf { it.exists() }?.let { load(FileInputStream(it)) }
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_17
+    }
+}
+
+tasks.withType<KotlinCompile>().configureEach {
+    if (name.contains("Release", ignoreCase = true)) {
+        compilerOptions {
+            freeCompilerArgs.addAll(
+                "-Xno-call-assertions",
+                "-Xno-param-assertions",
+                "-Xno-receiver-assertions",
+            )
+        }
     }
 }
 
@@ -35,9 +43,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-
-        buildConfigField("String", "BASE_URL", env.getProperty("BASE_URL") ?: "\"\"")
-
+        buildConfigField("String", "BASE_URL", env.getProperty("BASE_URL", "\"\""))
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -45,19 +51,33 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/DEPENDENCIES",
+                "META-INF/*.kotlin_module",
+                "kotlin-tooling-metadata.json",
+                "DebugProbesKt.bin",
+                "**.kotlin_builtins",
+            )
+        }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -65,58 +85,59 @@ android {
 }
 
 dependencies {
+    // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+
+    // Core
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.compose.animation)
-    implementation(libs.androidx.compose.material3)
+
+    // Compose UI
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    testImplementation(libs.junit)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    implementation(libs.androidx.compose.animation)
+    implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // Hilt/Dagger
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-    implementation(libs.hilt.compose)
-
-    // Retorofit2
-    implementation(libs.retrofit2.retrofit)
-    implementation(libs.retrofit2.kotlinx)
-
-    // Lifecycle
+    // Navigation + Lifecycle
+    implementation(libs.androidx.navigation)
     implementation(libs.androidx.lifecycle)
 
-    // Navigation
-    implementation(libs.androidx.navigation)
-
-    // Material Icons Core
+    // Material
     implementation(libs.androidx.icons)
+    implementation(libs.google.material)
 
-    // Room local database
+    // Hilt
+    implementation(libs.hilt.android)
+    implementation(libs.hilt.compose)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler)
+    ksp(libs.hilt.compiler.androidx)
+
+    // Retrofit + Kotlin serialization
+    implementation(libs.retrofit2.retrofit)
+    implementation(libs.retrofit2.kotlinx)
+    implementation(libs.kotlin.json)
+
+    // Room
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
 
-    // Android Material 3
-    implementation(libs.google.material)
-
-    // Kotlin JSON Serialization
-    implementation(libs.kotlin.json)
-
-    // Coli Compose & OkHttp3
+    // Coil
     implementation(libs.coli.compose)
     implementation(libs.coli.okhttp3)
 
-    // Glance & WorkManager
+    // Glance + WorkManager
     implementation(libs.glance.appwidget)
     implementation(libs.work.runtime.ktx)
-    implementation(libs.hilt.work)
-    ksp(libs.hilt.compiler.androidx)
+
+    // Tests
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }

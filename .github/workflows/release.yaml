@@ -49,6 +49,12 @@ jobs:
           gradlePath: app/build.gradle.kts
           versionCode: ${{ github.run_number }}
 
+      - name: Create .env file from Base64 secret
+        env:
+          BASE64_ENV: ${{ secrets.BASE64_SECRET }}
+        run: |
+          echo "$BASE64_ENV" | base64 --decode > .env
+
       - name: Assemble Release Bundle
         run: ./gradlew bundleRelease
 

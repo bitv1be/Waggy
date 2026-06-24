@@ -1,6 +1,8 @@
 package ru.bitvibe.waggy.presentation.widget
 
 import android.content.Context
+import android.graphics.BitmapFactory
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,15 +23,12 @@ import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
-import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import coil3.toBitmap
-import kotlinx.coroutines.runBlocking
 
 object BreedAppWidget : GlanceAppWidget() {
     override val stateDefinition: GlanceStateDefinition<*> = BreedWidgetStateDefinition
@@ -37,94 +36,111 @@ object BreedAppWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
             GlanceTheme {
-                Box(
-                    modifier = GlanceModifier.fillMaxSize()
-                        .background(GlanceTheme.colors.background)
-                        .clickable(onClick = actionRunCallback<RefreshAction>()),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when (val widgetState = currentState<BreedWidgetState>()) {
-                        is BreedWidgetState.Loaded -> BreedWidgetContent(
-                            context,
-                            widgetState.breedName,
-                            widgetState.imageUrl,
-                            widgetState.subBreedName
-                        )
+                when (val widgetState = currentState<BreedWidgetState>()) {
+                    is BreedWidgetState.Loaded -> BreedWidgetContent(
+                        context,
+                        widgetState
+                    )
 
-                        is BreedWidgetState.Loading -> {
-                            CircularProgressIndicator()
+                    is BreedWidgetState.Loading -> {
+                        Box(
+                            modifier = GlanceModifier.fillMaxSize()
+                                .background(GlanceTheme.colors.primaryContainer)
+                                .clickable(onClick = actionRunCallback<RefreshAction>()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = GlanceTheme.colors.onPrimaryContainer)
                         }
+                    }
 
-                        is BreedWidgetState.Error -> {
-                            Text(widgetState.message)
+                    is BreedWidgetState.Error -> {
+                        Box(
+                            modifier = GlanceModifier.fillMaxSize()
+                                .background(GlanceTheme.colors.primaryContainer)
+                                .clickable(onClick = actionRunCallback<RefreshAction>()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                widgetState.message, style = TextStyle(
+                                    color = GlanceTheme.colors.onPrimaryContainer
+                                )
+                            )
                         }
 
                     }
+
+                }
+
+            }
+        }
+    }
+
+
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+    @GlanceComposable
+    @Composable
+    fun BreedWidgetContent(
+        context: Context,
+        state: BreedWidgetState.Loaded
+    ) {
+        val backgroundColor = GlanceTheme.colors.primaryContainer.getColor(context)
+            .copy(alpha = 0.75f)
+
+        Box(
+            modifier = GlanceModifier.fillMaxSize()
+                .background(
+                    ImageProvider(
+                        BitmapFactory.decodeByteArray(
+                            state.backgroundImage,
+                            0,
+                            state.backgroundImage.size
+                        )
+                    )
+                )
+                .clickable(onClick = actionRunCallback<RefreshAction>()),
+        ) {
+            if (state.foregroundImage != null) {
+                Image(
+                    provider = ImageProvider(
+                        BitmapFactory.decodeByteArray(
+                            state.foregroundImage,
+                            0,
+                            state.foregroundImage.size
+                        )
+                    ),
+                    contentDescription = null,
+                    modifier = GlanceModifier.fillMaxSize(),
+                )
+            }
+            Column(
+                modifier = GlanceModifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalAlignment = Alignment.Start
+            ) {
+                Box(
+                    modifier = GlanceModifier
+                        .padding(8.dp)
+                        .cornerRadius(8.dp)
+                        .background(
+                            backgroundColor
+                        )
+                ) {
+                    val breedText =
+                        state.subBreedName?.let { "$it ${state.breedName}" }
+                            ?: state.breedName
+
+                    Text(
+                        text = breedText.replaceFirstChar { it.uppercase() },
+                        style = TextStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = GlanceTheme.colors.onBackground
+                        )
+                    )
                 }
             }
-
-        }
-    }
-}
-
-@GlanceComposable
-@Composable
-fun BreedWidgetContent(
-    context: Context,
-    breedName: String,
-    imageUrl: String,
-    subBreedName: String?,
-) {
-    val bitmap = if (imageUrl.isNotEmpty()) {
-        try {
-            android.graphics.BitmapFactory.decodeFile(imageUrl)
-        } catch (_: Exception) {
-            null
-        }
-    } else {
-        null
-    }
-
-    val backgroundColor = GlanceTheme.colors.background.getColor(context)
-        .copy(alpha = 0.75f)
-
-    if (bitmap != null) {
-        Image(
-            provider = ImageProvider(bitmap),
-            contentDescription = null,
-            modifier = GlanceModifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-    }
-
-
-    Column(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .padding(8.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalAlignment = Alignment.Start
-    ) {
-        Box(
-            modifier = GlanceModifier
-                .padding(8.dp)
-                .cornerRadius(8.dp)
-                .background(
-                    backgroundColor
-                )
-        ) {
-            val breedText =
-                subBreedName?.let { "$it $breedName" }
-                    ?: breedName
-
-            Text(
-                text = breedText.replaceFirstChar { it.uppercase() },
-                style = TextStyle(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = GlanceTheme.colors.onBackground
-                )
-            )
         }
     }
 }

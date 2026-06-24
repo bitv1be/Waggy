@@ -3,6 +3,7 @@ package ru.bitvibe.waggy.data.repository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import ru.bitvibe.waggy.BuildConfig
 import ru.bitvibe.waggy.data.local.BreedEntity
 import ru.bitvibe.waggy.data.local.BreedsDao
 import ru.bitvibe.waggy.data.local.SubBreedEntity
@@ -34,7 +35,8 @@ class BreedRepositoryImpl @Inject constructor(
             val deferredBreeds = remote.message.keys.map { breedName ->
                 async {
                     val imageUrl = try {
-                        api.getRandomImageForBreed(breedName).message
+                        val imagePath = api.getRandomImageForBreed(breedName).message
+                        "${BuildConfig.BASE_URL.trimEnd('/')}/${imagePath.trimStart('/')}"
                     } catch (e: Exception) {
                         null
                     }
@@ -93,7 +95,10 @@ class BreedRepositoryImpl @Inject constructor(
         val randomFavorite = favorites.random()
         val imageUrl = try {
             if (randomFavorite.subBreedName != null) {
-                api.getRandomImageForSubBreed(randomFavorite.breedName, randomFavorite.subBreedName).message
+                api.getRandomImageForSubBreed(
+                    randomFavorite.breedName,
+                    randomFavorite.subBreedName
+                ).message
             } else {
                 api.getRandomImageForBreed(randomFavorite.breedName).message
             }

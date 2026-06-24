@@ -78,3 +78,11 @@
 -keep public class * implements androidx.glance.appwidget.action.ActionCallback {
     <init>();
 }
+
+-keep class com.google.mlkit.common.** { *; }
+-keep class com.google.mlkit.vision.** { *; }
+
+# Keep native methods to prevent UnsatisfiedLinkError crashes during processing
+-keepclasseswithmembernames class * {
+    native <methods>;
+}

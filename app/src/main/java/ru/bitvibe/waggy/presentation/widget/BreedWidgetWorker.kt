@@ -41,6 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import ru.bitvibe.waggy.BuildConfig
+import ru.bitvibe.waggy.R
 import ru.bitvibe.waggy.domain.usecase.GetRandomFavoriteBreedUseCase
 import ru.bitvibe.waggy.domain.usecase.UseCase
 import java.io.ByteArrayOutputStream
@@ -51,10 +52,11 @@ import kotlin.coroutines.resume
 class BreedWidgetWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted params: WorkerParameters,
-    private val getRandomFavoriteBreedUseCase: GetRandomFavoriteBreedUseCase
+    @Assisted private val getRandomFavoriteBreedUseCase: GetRandomFavoriteBreedUseCase
 ) : CoroutineWorker(context, params) {
     companion object {
         const val APP_WIDGET_ID_EXTRA = "app_widget_id_extra"
+        const val ONE_TIME_POSTFIX = "_onetime"
         const val TAG = "BreedWidgetWorker"
 
         fun enqueuePeriodicWork(
@@ -83,13 +85,13 @@ class BreedWidgetWorker @AssistedInject constructor(
                     .setInputData(inputData)
                     .build()
                 workManager.enqueueUniqueWork(
-                    uniqueWorkName + "_onetime",
+                    uniqueWorkName + ONE_TIME_POSTFIX,
                     ExistingWorkPolicy.APPEND_OR_REPLACE,
                     oneTimeRequest
                 )
             } else {
                 // Cancel one-time work if any
-                workManager.cancelUniqueWork(uniqueWorkName + "_onetime")
+                workManager.cancelUniqueWork(uniqueWorkName + ONE_TIME_POSTFIX)
 
                 val request =
                     PeriodicWorkRequestBuilder<BreedWidgetWorker>(intervalMinutes, TimeUnit.MINUTES)
@@ -111,7 +113,7 @@ class BreedWidgetWorker @AssistedInject constructor(
         fun cancel(context: Context, appWidgetId: Int) {
             val uniqueWorkName = "${BreedWidgetWorker::class.java.simpleName}-$appWidgetId"
             WorkManager.getInstance(context).cancelUniqueWork(uniqueWorkName)
-            WorkManager.getInstance(context).cancelUniqueWork(uniqueWorkName + "_onetime")
+            WorkManager.getInstance(context).cancelUniqueWork(uniqueWorkName + ONE_TIME_POSTFIX)
         }
     }
 
@@ -148,7 +150,7 @@ class BreedWidgetWorker @AssistedInject constructor(
         BreedAppWidget.update(context, glanceId)
 
         val newBreed = getRandomFavoriteBreedUseCase(UseCase.None) ?: run {
-            setErrorWidget(glanceId)
+            setErrorWidget(glanceId, context.getString(R.string.failed_get_new_breed))
             return@withContext
         }
 
@@ -168,14 +170,15 @@ class BreedWidgetWorker @AssistedInject constructor(
                 }
 
                 is ErrorResult -> {
-                    setErrorWidget(glanceId, "Failed to get image")
+                    Log.e(TAG, "Downloading image failed", result.throwable)
+                    setErrorWidget(glanceId, context.getString(R.string.failed_get_image))
                     return@withContext
                 }
             }
         } catch (e: Exception) {
-            val message = e.message ?: "Unknown error"
-            Log.e(TAG, message)
-            setErrorWidget(glanceId, "Failed to get image")
+            val message = e.message ?: context.getString(R.string.unknown_error)
+            Log.e(TAG, message, e)
+            setErrorWidget(glanceId, context.getString(R.string.failed_get_image))
             return@withContext
         }
 
@@ -236,7 +239,7 @@ class BreedWidgetWorker @AssistedInject constructor(
 
     private suspend fun setErrorWidget(
         glanceId: GlanceId,
-        message: String = "Failed to get new breed"
+        message: String
     ) {
         updateAppWidgetState(
             context = context,

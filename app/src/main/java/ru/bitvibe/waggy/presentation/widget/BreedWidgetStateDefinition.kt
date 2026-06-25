@@ -40,7 +40,7 @@ object BreedWidgetStateSerializer : Serializer<BreedWidgetState> {
             input.readBytes().decodeToString()
         )
     } catch (exception: SerializationException) {
-        throw CorruptionException("Could not read widget state: ${exception.message}")
+        throw CorruptionException("Could not read widget state: ${exception.message}", exception)
     }
 
     override suspend fun writeTo(

@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
+import android.os.Build
 import android.util.Log
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialShapes
@@ -38,10 +39,13 @@ import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import ru.bitvibe.waggy.BuildConfig
 import ru.bitvibe.waggy.R
+import ru.bitvibe.waggy.data.preferences.WidgetPreferencesImpl
 import ru.bitvibe.waggy.domain.usecase.GetRandomFavoriteBreedUseCase
 import ru.bitvibe.waggy.domain.usecase.UseCase
 import java.io.ByteArrayOutputStream
@@ -52,12 +56,16 @@ import kotlin.coroutines.resume
 class BreedWidgetWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted params: WorkerParameters,
-    @Assisted private val getRandomFavoriteBreedUseCase: GetRandomFavoriteBreedUseCase
+    private val getRandomFavoriteBreedUseCase: GetRandomFavoriteBreedUseCase
 ) : CoroutineWorker(context, params) {
     companion object {
         const val APP_WIDGET_ID_EXTRA = "app_widget_id_extra"
-        const val ONE_TIME_POSTFIX = "_onetime"
-        const val TAG = "BreedWidgetWorker"
+        private const val ONE_TIME_POSTFIX = "_onetime"
+        private const val TAG = "BreedWidgetWorker"
+
+        private val SEGMENTER_OPTIONS = SubjectSegmenterOptions.Builder()
+            .enableForegroundBitmap()
+            .build()
 
         fun enqueuePeriodicWork(
             context: Context,
@@ -65,21 +73,17 @@ class BreedWidgetWorker @AssistedInject constructor(
             force: Boolean = false
         ) {
             val workManager = WorkManager.getInstance(context)
-
             val inputData = Data.Builder()
                 .putInt(APP_WIDGET_ID_EXTRA, appWidgetId)
                 .build()
 
             val uniqueWorkName = "${BreedWidgetWorker::class.java.simpleName}-$appWidgetId"
-
-            val prefs = ru.bitvibe.waggy.data.preferences.WidgetPreferencesImpl(context)
+            val prefs = WidgetPreferencesImpl(context)
             val intervalMinutes = prefs.updatePeriodMinutes.value
 
             if (intervalMinutes == -1L) {
-                // Cancel periodic work if any
                 workManager.cancelUniqueWork(uniqueWorkName)
 
-                // Enqueue 30s one-time request
                 val oneTimeRequest = OneTimeWorkRequestBuilder<BreedWidgetWorker>()
                     .setInitialDelay(30, TimeUnit.SECONDS)
                     .setInputData(inputData)
@@ -90,7 +94,6 @@ class BreedWidgetWorker @AssistedInject constructor(
                     oneTimeRequest
                 )
             } else {
-                // Cancel one-time work if any
                 workManager.cancelUniqueWork(uniqueWorkName + ONE_TIME_POSTFIX)
 
                 val request =
@@ -100,11 +103,7 @@ class BreedWidgetWorker @AssistedInject constructor(
 
                 workManager.enqueueUniquePeriodicWork(
                     uniqueWorkName = uniqueWorkName,
-                    existingPeriodicWorkPolicy = if (force) {
-                        ExistingPeriodicWorkPolicy.UPDATE
-                    } else {
-                        ExistingPeriodicWorkPolicy.KEEP
-                    },
+                    existingPeriodicWorkPolicy = if (force) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP,
                     request = request
                 )
             }
@@ -112,14 +111,14 @@ class BreedWidgetWorker @AssistedInject constructor(
 
         fun cancel(context: Context, appWidgetId: Int) {
             val uniqueWorkName = "${BreedWidgetWorker::class.java.simpleName}-$appWidgetId"
-            WorkManager.getInstance(context).cancelUniqueWork(uniqueWorkName)
-            WorkManager.getInstance(context).cancelUniqueWork(uniqueWorkName + ONE_TIME_POSTFIX)
+            val workManager = WorkManager.getInstance(context)
+            workManager.cancelUniqueWork(uniqueWorkName)
+            workManager.cancelUniqueWork(uniqueWorkName + ONE_TIME_POSTFIX)
         }
     }
 
     override suspend fun doWork(): Result {
         val appWidgetManager = GlanceAppWidgetManager(context)
-
         val targetId = inputData.getInt(APP_WIDGET_ID_EXTRA, -1)
 
         if (targetId != -1) {
@@ -129,11 +128,6 @@ class BreedWidgetWorker @AssistedInject constructor(
             appWidgetManager.getGlanceIds(BreedAppWidget::class.java).forEach { glanceId ->
                 updateWidget(glanceId)
             }
-        }
-
-        val prefs = ru.bitvibe.waggy.data.preferences.WidgetPreferencesImpl(context)
-        if (prefs.updatePeriodMinutes.value == -1L && targetId != -1) {
-            enqueuePeriodicWork(context, targetId, true)
         }
 
         return Result.success()
@@ -162,13 +156,11 @@ class BreedWidgetWorker @AssistedInject constructor(
             val request = ImageRequest.Builder(context)
                 .data(fullImageUrl)
                 .allowHardware(false)
+                .size(800)
                 .build()
 
             when (val result = loader.execute(request)) {
-                is SuccessResult -> {
-                    result.image.toBitmap()
-                }
-
+                is SuccessResult -> result.image.toBitmap()
                 is ErrorResult -> {
                     Log.e(TAG, "Downloading image failed", result.throwable)
                     setErrorWidget(glanceId, context.getString(R.string.failed_get_image))
@@ -176,103 +168,123 @@ class BreedWidgetWorker @AssistedInject constructor(
                 }
             }
         } catch (e: Exception) {
-            val message = e.message ?: context.getString(R.string.unknown_error)
-            Log.e(TAG, message, e)
+            Log.e(TAG, e.message ?: context.getString(R.string.unknown_error), e)
             setErrorWidget(glanceId, context.getString(R.string.failed_get_image))
             return@withContext
         }
 
-        val foreground = withContext(Dispatchers.Default) {
-            segmentDog(bitmap)?.let { image ->
-                val stream = ByteArrayOutputStream()
-                image.compress(Bitmap.CompressFormat.WEBP, 100, stream)
-                stream.toByteArray()
-            }
-        }
+        try {
+            coroutineScope {
+                val foregroundDeferred = async(Dispatchers.Default) {
+                    segmentDog(bitmap)?.let { image ->
+                        try {
+                            val size = maxOf(bitmap.width, bitmap.height)
+                            val aligned = createAlignedWidgetBitmap(
+                                inputBitmap = image,
+                                widthPx = size,
+                                heightPx = size,
+                                polygon = MaterialShapes.SemiCircle,
+                                clipToPolygon = false
+                            )
+                            try {
+                                aligned.toCompressedByteArray(quality = 80)
+                            } finally {
+                                aligned.recycle()
+                            }
+                        } finally {
+                            image.recycle()
+                        }
+                    }
+                }
 
-        val background = createClippedWidgetBitmap(
-            bitmap, bitmap.width, bitmap.height,
-            MaterialShapes.SemiCircle
-        ).let { image ->
-            val stream = ByteArrayOutputStream()
-            image.compress(Bitmap.CompressFormat.WEBP, 100, stream)
-            stream.toByteArray()
-        }
+                val backgroundDeferred = async(Dispatchers.Default) {
+                    val size = maxOf(bitmap.width, bitmap.height)
+                    val clipped = createAlignedWidgetBitmap(
+                        inputBitmap = bitmap,
+                        widthPx = size,
+                        heightPx = size,
+                        polygon = MaterialShapes.SemiCircle,
+                        clipToPolygon = true
+                    )
+                    try {
+                        clipped.toCompressedByteArray(quality = 80)
+                    } finally {
+                        clipped.recycle()
+                    }
+                }
 
-        updateAppWidgetState(
-            context = context,
-            definition = BreedWidgetStateDefinition,
-            glanceId = glanceId,
-            updateState = {
-                BreedWidgetState.Loaded(
-                    breedName = newBreed.breedName,
-                    subBreedName = newBreed.subBreedName,
-                    backgroundImage = background,
-                    foregroundImage = foreground
+                val foreground = foregroundDeferred.await()
+                val background = backgroundDeferred.await()
+
+                updateAppWidgetState(
+                    context = context,
+                    definition = BreedWidgetStateDefinition,
+                    glanceId = glanceId,
+                    updateState = {
+                        BreedWidgetState.Loaded(
+                            breedName = newBreed.breedName,
+                            subBreedName = newBreed.subBreedName,
+                            backgroundImage = background,
+                            foregroundImage = foreground
+                        )
+                    }
                 )
+                BreedAppWidget.update(context, glanceId)
             }
-        )
-        BreedAppWidget.update(context, glanceId)
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     private suspend fun segmentDog(bitmap: Bitmap): Bitmap? = suspendCancellableCoroutine { cont ->
-        val subjectResultOptions = SubjectSegmenterOptions.SubjectResultOptions.Builder()
-            .enableSubjectBitmap()
-            .build()
+        val segmenter = SubjectSegmentation.getClient(SEGMENTER_OPTIONS)
 
-        val options = SubjectSegmenterOptions.Builder()
-            .enableMultipleSubjects(subjectResultOptions)
-            .build()
+        cont.invokeOnCancellation { segmenter.close() }
 
-        val segmenter = SubjectSegmentation.getClient(options)
-        val image = InputImage.fromBitmap(bitmap, 0)
-
-        segmenter.process(image)
+        segmenter.process(InputImage.fromBitmap(bitmap, 0))
             .addOnSuccessListener { result ->
-                cont.resume(result.subjects.firstOrNull()?.bitmap)
+                if (cont.isActive) cont.resume(result.foregroundBitmap)
             }
             .addOnFailureListener { error ->
                 Log.e(TAG, "Segmentation failed", error)
-                cont.resume(null)
+                if (cont.isActive) cont.resume(null)
+            }
+            .addOnCompleteListener {
+                segmenter.close()
             }
     }
 
-    private suspend fun setErrorWidget(
-        glanceId: GlanceId,
-        message: String
-    ) {
+    private suspend fun setErrorWidget(glanceId: GlanceId, message: String) {
         updateAppWidgetState(
             context = context,
             definition = BreedWidgetStateDefinition,
             glanceId = glanceId,
-            updateState = {
-                BreedWidgetState.Error(message)
-            }
+            updateState = { BreedWidgetState.Error(message) }
         )
         BreedAppWidget.update(context, glanceId)
     }
 
-    private suspend fun createClippedWidgetBitmap(
+    private suspend fun createAlignedWidgetBitmap(
         inputBitmap: Bitmap,
         widthPx: Int,
         heightPx: Int,
-        polygon: RoundedPolygon
+        polygon: RoundedPolygon,
+        clipToPolygon: Boolean
     ): Bitmap = withContext(Dispatchers.Default) {
-        val basePath = polygon.toPath()
-
-        val pathScaleMatrix = Matrix().apply {
-            setScale(widthPx.toFloat(), heightPx.toFloat())
-        }
-        val scaledPath = Path()
-        basePath.transform(pathScaleMatrix, scaledPath)
-
         val output = createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        canvas.drawPath(scaledPath, paint)
-
-        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        if (clipToPolygon) {
+            val basePath = polygon.toPath()
+            val pathScaleMatrix = Matrix().apply {
+                setScale(widthPx.toFloat(), heightPx.toFloat())
+            }
+            val scaledPath = Path()
+            basePath.transform(pathScaleMatrix, scaledPath)
+            canvas.drawPath(scaledPath, paint)
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        }
 
         val scale: Float
         val dx: Float
@@ -280,7 +292,7 @@ class BreedWidgetWorker @AssistedInject constructor(
 
         if (inputBitmap.width * heightPx > widthPx * inputBitmap.height) {
             scale = heightPx.toFloat() / inputBitmap.height.toFloat()
-            dx = (widthPx - inputBitmap.width * scale) * 0.2f
+            dx = (widthPx - inputBitmap.width * scale) * 0.5f
             dy = 0f
         } else {
             scale = widthPx.toFloat() / inputBitmap.width.toFloat()
@@ -296,5 +308,17 @@ class BreedWidgetWorker @AssistedInject constructor(
         canvas.drawBitmap(inputBitmap, bitmapMatrix, paint)
 
         return@withContext output
+    }
+
+    private fun Bitmap.toCompressedByteArray(quality: Int): ByteArray {
+        return ByteArrayOutputStream(1024 * 64).use { stream ->
+            val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Bitmap.CompressFormat.WEBP_LOSSY
+            } else {
+                Bitmap.CompressFormat.WEBP
+            }
+            compress(format, quality, stream)
+            stream.toByteArray()
+        }
     }
 }

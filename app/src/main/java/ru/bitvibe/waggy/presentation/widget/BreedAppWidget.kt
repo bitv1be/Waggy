@@ -6,6 +6,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.Button
 import androidx.glance.GlanceComposable
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -23,12 +24,16 @@ import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
+import ru.bitvibe.waggy.R
 
 object BreedAppWidget : GlanceAppWidget() {
     override val stateDefinition: GlanceStateDefinition<*> = BreedWidgetStateDefinition
@@ -45,8 +50,7 @@ object BreedAppWidget : GlanceAppWidget() {
                     is BreedWidgetState.Loading -> {
                         Box(
                             modifier = GlanceModifier.fillMaxSize()
-                                .background(GlanceTheme.colors.primaryContainer)
-                                .clickable(onClick = actionRunCallback<RefreshAction>()),
+                                .background(GlanceTheme.colors.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(color = GlanceTheme.colors.onPrimaryContainer)
@@ -54,23 +58,36 @@ object BreedAppWidget : GlanceAppWidget() {
                     }
 
                     is BreedWidgetState.Error -> {
-                        Box(
+                        Column(
                             modifier = GlanceModifier.fillMaxSize()
-                                .background(GlanceTheme.colors.primaryContainer)
-                                .clickable(onClick = actionRunCallback<RefreshAction>()),
-                            contentAlignment = Alignment.Center
+                                .background(GlanceTheme.colors.primaryContainer),
+                            verticalAlignment = Alignment.Vertical.CenterVertically,
+                            horizontalAlignment = Alignment.Horizontal.CenterHorizontally
                         ) {
                             Text(
                                 widgetState.message, style = TextStyle(
-                                    color = GlanceTheme.colors.onPrimaryContainer
+                                    color = GlanceTheme.colors.onPrimaryContainer,
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 14.sp
+                                )
+                            )
+                            Spacer(modifier = GlanceModifier.height(12.dp))
+                            Button(
+                                text =
+                                    context.getString(R.string.try_again),
+                                onClick = actionRunCallback<RefreshAction>(),
+                                modifier = GlanceModifier.padding(16.dp, 8.dp)
+                                    .background(GlanceTheme.colors.primary),
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onPrimary,
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             )
                         }
-
                     }
-
                 }
-
             }
         }
     }
@@ -144,13 +161,3 @@ object BreedAppWidget : GlanceAppWidget() {
         }
     }
 }
-
-//private fun update(
-//    context: Context
-//) = {
-//    GlanceAppWidgetManager(context = context).getGlanceIds(BreedAppWidget::class.java)
-//        .forEach { glanceId ->
-//            updateAppWidgetState(context, glanceId) {}
-//            BreedAppWidget().update(context, glanceId)
-//        }
-//}

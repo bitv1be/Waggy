@@ -68,17 +68,19 @@ fun BreedsDetailsScreen(
 
                 state.breed != null && state.error == null -> {
                     BreedsDetailsContent(
-                        state.breed!!,
-                        state.favorites,
-                        { name -> viewModel.onEvent(BreedsDetailsEvent.OnToggleBreedFavorite(name)) },
-                        { name, subName ->
+                        breed = state.breed!!,
+                        favorites = state.favorites,
+                        foregroundBitmap = state.foregroundBitmap,
+                        onToggleBreedFavorite = { name -> viewModel.onEvent(BreedsDetailsEvent.OnToggleBreedFavorite(name)) },
+                        onToggleSubBreedFavorite = { name, subName ->
                             viewModel.onEvent(
                                 BreedsDetailsEvent.OnToggleSubBreedFavorite(
                                     name,
                                     subName
                                 )
                             )
-                        })
+                        }
+                    )
                 }
             }
         }
@@ -89,6 +91,7 @@ fun BreedsDetailsScreen(
 fun BreedsDetailsContent(
     breed: Breed,
     favorites: List<Favorite>,
+    foregroundBitmap: android.graphics.Bitmap?,
     onToggleBreedFavorite: (String) -> Unit,
     onToggleSubBreedFavorite: (String, String) -> Unit
 ) {
@@ -102,7 +105,8 @@ fun BreedsDetailsContent(
             BreedHeaderWidget(
                 breed = breed,
                 isFavorite = favorites.any { it.breedName.equals(breed.name, ignoreCase = true) && it.subBreedName == null },
-                onToggleFavorite = { onToggleBreedFavorite(breed.name) }
+                onToggleFavorite = { onToggleBreedFavorite(breed.name) },
+                foregroundBitmap = foregroundBitmap
             )
         }
 

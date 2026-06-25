@@ -1,5 +1,6 @@
 package ru.bitvibe.waggy.presentation.breeds.details
 
+import android.graphics.Bitmap
 import ru.bitvibe.waggy.domain.models.Breed
 import ru.bitvibe.waggy.domain.models.Favorite
 
@@ -7,7 +8,9 @@ data class BreedsDetailsUiState(
     val isLoading: Boolean = false,
     val breed: Breed? = null,
     val favorites: List<Favorite> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val isSegmenting: Boolean = false,
+    val foregroundBitmap: Bitmap? = null
 )
 
 sealed interface BreedsDetailsEvent {

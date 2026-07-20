@@ -39,7 +39,7 @@ android {
 
     defaultConfig {
         applicationId = "ru.bitvibe.waggy"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
@@ -140,4 +140,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+
+    // MLKit Segmentation
+    implementation(libs.mlkit.segmentation)
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Случайная фотография собак</string>
+    <string name="widget_description">Случайная фотография любимых пород и подрод</string>
+    <string name="failed_get_image">Проверьте подключение к Интернету</string>
+    <string name="unknown_error">Неизвестная ошибка</string>
+    <string name="failed_get_new_breed">Возможно вы забыли добавть в израбное любимые породы</string>
+    <string name="try_again">Обновить</string>
+</resources>

@@ -1,5 +1,9 @@
 <resources>
-    <string name="app_name">Waggy</string>
+    <string name="app_name" translatable="false">Waggy</string>
     <string name="widget_label">Random photo of dogs</string>
     <string name="widget_description">Random photo of favorites breeds and sub-breeds</string>
+    <string name="failed_get_image">Check Internet connection</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="failed_get_new_breed">Perhaps you forgot to add your favorite breeds to the list</string>
+    <string name="try_again">Refresh</string>
 </resources>

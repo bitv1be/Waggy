@@ -1,5 +1,7 @@
 package ru.bitvibe.waggy.data.repository
 
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -38,6 +40,9 @@ class BreedRepositoryImpl @Inject constructor(
                         val imagePath = api.getRandomImageForBreed(breedName).message
                         "${BuildConfig.BASE_URL.trimEnd('/')}/${imagePath.trimStart('/')}"
                     } catch (e: Exception) {
+                        val message = e.message ?: "Unknown error"
+                        Firebase.crashlytics.log(message)
+                        Firebase.crashlytics.recordException(e)
                         null
                     }
                     BreedEntity(breedName = breedName, imageUrl = imageUrl)
@@ -103,6 +108,9 @@ class BreedRepositoryImpl @Inject constructor(
                 api.getRandomImageForBreed(randomFavorite.breedName).message
             }
         } catch (e: Exception) {
+            val message = e.message ?: "Unknown error"
+            Firebase.crashlytics.log(message)
+            Firebase.crashlytics.recordException(e)
             return null
         }
 

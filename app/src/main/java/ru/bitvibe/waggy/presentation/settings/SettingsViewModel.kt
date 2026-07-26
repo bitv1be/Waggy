@@ -1,9 +1,15 @@
 package ru.bitvibe.waggy.presentation.settings
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,19 +18,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.bitvibe.waggy.domain.models.Favorite
 import ru.bitvibe.waggy.domain.preferences.ThemePreferences
+import ru.bitvibe.waggy.domain.preferences.WidgetPreferences
 import ru.bitvibe.waggy.domain.usecase.ClearAllFavoritesUseCase
 import ru.bitvibe.waggy.domain.usecase.GetAllFavoritesUseCase
 import ru.bitvibe.waggy.domain.usecase.ToggleBreedFavoriteUseCase
 import ru.bitvibe.waggy.domain.usecase.ToggleBreedParams
 import ru.bitvibe.waggy.domain.usecase.UseCase
-import javax.inject.Inject
-import android.content.ComponentName
-import android.appwidget.AppWidgetManager
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
-import ru.bitvibe.waggy.domain.preferences.WidgetPreferences
 import ru.bitvibe.waggy.presentation.widget.BreedWidgetReceiver
 import ru.bitvibe.waggy.presentation.widget.BreedWidgetWorker
+import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -67,6 +69,8 @@ class SettingsViewModel @Inject constructor(
                 _state.update { it.copy(favorites = favorites, isLoading = false) }
             } catch (e: Exception) {
                 val message = e.message ?: "Unknown error"
+                Firebase.crashlytics.log(message)
+                Firebase.crashlytics.recordException(e)
                 Log.e(TAG, message)
                 _state.update {
                     it.copy(
@@ -90,6 +94,8 @@ class SettingsViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 val message = e.message ?: "Unknown error"
+                Firebase.crashlytics.log(message)
+                Firebase.crashlytics.recordException(e)
                 Log.e(TAG, message)
                 _state.update {
                     it.copy(
@@ -108,6 +114,8 @@ class SettingsViewModel @Inject constructor(
                 clearAllFavoritesUseCase(UseCase.None)
             } catch (e: Exception) {
                 val message = e.message ?: "Unknown error"
+                Firebase.crashlytics.log(message)
+                Firebase.crashlytics.recordException(e)
                 Log.e(TAG, message)
                 _state.update {
                     it.copy(
@@ -129,12 +137,12 @@ class SettingsViewModel @Inject constructor(
     private fun setWidgetPeriod(minutes: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             widgetPreferences.setUpdatePeriodMinutes(minutes)
-            
+
             // Re-enqueue work for all widgets with the new interval
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val componentName = ComponentName(context, BreedWidgetReceiver::class.java)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
-            
+
             appWidgetIds.forEach { appWidgetId ->
                 BreedWidgetWorker.enqueuePeriodicWork(context, appWidgetId, force = true)
             }

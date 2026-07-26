@@ -3,6 +3,8 @@ package ru.bitvibe.waggy.presentation.breeds
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,6 +55,8 @@ class BreedsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 val message = e.message ?: "Unknown error"
+                Firebase.crashlytics.log(message)
+                Firebase.crashlytics.recordException(e)
                 Log.e(TAG, message)
                 _state.update {
                     it.copy(

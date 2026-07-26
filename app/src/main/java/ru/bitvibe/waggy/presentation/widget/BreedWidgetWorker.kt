@@ -33,6 +33,8 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
@@ -162,13 +164,17 @@ class BreedWidgetWorker @AssistedInject constructor(
             when (val result = loader.execute(request)) {
                 is SuccessResult -> result.image.toBitmap()
                 is ErrorResult -> {
+                    Firebase.crashlytics.recordException(result.throwable)
                     Log.e(TAG, "Downloading image failed", result.throwable)
                     setErrorWidget(glanceId, context.getString(R.string.failed_get_image))
                     return@withContext
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, e.message ?: context.getString(R.string.unknown_error), e)
+            val message = e.message ?: context.getString(R.string.unknown_error)
+            Log.e(TAG, message, e)
+            Firebase.crashlytics.log(message)
+            Firebase.crashlytics.recordException(e)
             setErrorWidget(glanceId, context.getString(R.string.failed_get_image))
             return@withContext
         }
@@ -247,6 +253,8 @@ class BreedWidgetWorker @AssistedInject constructor(
             }
             .addOnFailureListener { error ->
                 Log.e(TAG, "Segmentation failed", error)
+                Firebase.crashlytics.log("Widget segmentation failed")
+                Firebase.crashlytics.recordException(error)
                 if (cont.isActive) cont.resume(null)
             }
             .addOnCompleteListener {

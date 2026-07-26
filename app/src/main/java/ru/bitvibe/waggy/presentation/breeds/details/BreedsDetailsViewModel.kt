@@ -12,6 +12,8 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
@@ -131,6 +133,8 @@ class BreedsDetailsViewModel @Inject constructor(
             } catch (e: Exception) {
                 val message = e.message ?: "Unknown error"
                 Log.e(TAG, message)
+                Firebase.crashlytics.log(message)
+                Firebase.crashlytics.recordException(e)
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -165,7 +169,10 @@ class BreedsDetailsViewModel @Inject constructor(
                     _state.update { it.copy(isSegmenting = false) }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error downloading/segmenting image", e)
+                val message = "Error downloading/segmenting image"
+                Log.e(TAG, message, e)
+                Firebase.crashlytics.log(message)
+                Firebase.crashlytics.recordException(e)
                 _state.update { it.copy(isSegmenting = false) }
             }
         }
@@ -181,6 +188,8 @@ class BreedsDetailsViewModel @Inject constructor(
             }
             .addOnFailureListener { error ->
                 Log.e(TAG, "Segmentation failed", error)
+                Firebase.crashlytics.log("Segmentation failed")
+                Firebase.crashlytics.recordException(error)
                 if (cont.isActive) cont.resume(null)
             }
             .addOnCompleteListener {

@@ -30,6 +30,29 @@ Follow standard Kotlin and Android Studio formatting: four-space indentation, tr
 
 Tests use JUnit 4, AndroidX Test, Espresso, and Compose UI testing. Name test classes after the subject and methods after observable behavior, for example `loadBreeds_updatesStateOnSuccess`. Add local tests for domain and ViewModel logic; use instrumented tests for framework, database, widget, or UI behavior. There is no enforced coverage threshold, but new behavior and regressions should include focused tests.
 
+## Agent Tooling
+
+Tool availability depends on the host Codex setup. Use the narrowest tool that fits the task, inspect state before mutating it, and do not install or reconfigure tooling unless the user asks.
+
+### MCP Servers
+
+- `mobile-mcp`: use for Android device and emulator workflows such as listing devices, installing or launching the app, inspecting on-screen elements, entering input, taking screenshots or recordings, and collecting crash details. Confirm the target device and package before install, uninstall, or termination actions, and prefer element inspection over coordinate-only interaction.
+- `playwright`: use for browser automation and web UI verification. Capture a page snapshot before interacting, use semantic locators where possible, and reserve it for browser behavior rather than Android UI testing.
+
+### Plugins
+
+- `github`: use the connected GitHub app for repository, issue, pull request, review, and workflow metadata. Its skills are `github:github` for general triage, `github:gh-address-comments` for unresolved review feedback, `github:gh-fix-ci` for failing GitHub Actions checks, and `github:yeet` for an intentional commit, push, and draft-PR flow. Follow each skill's connector-first and `gh` fallback rules.
+- `openai-templates`: use its supplied templates only when creating a requested document, presentation, or spreadsheet artifact. It is not part of the Android build workflow.
+
+### Repository Skills
+
+Android-specific skills live under `.agents/skills/<skill-name>/SKILL.md`. When a task names a skill or clearly matches its description, read that `SKILL.md` completely before acting, follow only the references relevant to the task, and mention the skill in the work update. If multiple skills match, use the smallest set that covers the request.
+
+- Build and tooling: `agp-9-upgrade`, `android-cli`, `play-billing-library-version-upgrade`, `r8-analyzer`, and `testing-setup`.
+- UI and form factors: `adaptive`, `display-glasses-with-jetpack-compose-glimmer`, `edge-to-edge`, `migrate-xml-views-to-jetpack-compose`, `navigation-3`, `styles`, and `wear-compose-m3`.
+- Platform and product integrations: `android-intent-security`, `appfunctions`, `camerax`, `engage-sdk-integration`, and `verified-email`.
+- Performance analysis: `perfetto-sql` for targeted trace queries and `perfetto-trace-analysis` for end-to-end trace investigations.
+
 ## Commit & Pull Request Guidelines
 
 Recent history generally uses Conventional Commit-style subjects such as `feat(widget): ...` and `chore: ...`. Write imperative, concise subjects and include a scope when useful. Pull requests should explain the user-visible change, list verification commands, link relevant issues, and include screenshots or recordings for UI/widget changes. Keep PRs focused and ensure `testDebug` passes.

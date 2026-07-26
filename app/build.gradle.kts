@@ -9,6 +9,8 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.compiler)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 val env = Properties().apply {
@@ -143,4 +145,13 @@ dependencies {
 
     // MLKit Segmentation
     implementation(libs.mlkit.segmentation)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+
+    // Crashlytics
+    implementation(libs.firebase.crashlytics)
+
+    // Analytics
+    implementation(libs.firebase.analytics)
 }

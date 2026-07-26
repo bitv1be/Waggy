@@ -86,3 +86,12 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+
+# Keeps original source file names and line numbers in the obfuscated stack traces
+-keepattributes SourceFile,LineNumberTable
+
+# Prevents annotations from being stripped out, which Crashlytics uses for issue grouping
+-keepattributes *Annotation*
+
+# Keeps custom exception class names intact so your issue names remain readable
+-keep public class * extends java.lang.Exception

@@ -181,4 +181,4 @@ jobs:
             --generate-notes
           )
 
-          gh release create "${release_args[@]}"
+          gh release create "${release_args[@]}" --repo "$GITHUB_REPOSITORY"

@@ -1,8 +1,9 @@
 # Releasing Waggy
 
 The `Release Waggy` GitHub Actions workflow builds a signed APK and AAB, runs
-the local tests and Android lint, optionally uploads the AAB to a RuStore draft,
-and publishes the binaries with SHA-256 checksums in a GitHub Release.
+the local tests and Android lint, uploads the AAB to a RuStore draft, and
+publishes the binaries with SHA-256 checksums in a GitHub Release after every
+update to the `main` branch.
 
 ## One-time repository setup
 
@@ -23,8 +24,6 @@ Actions**:
 `BASE64_SECRET` is optional. If set, it must contain the base64-encoded
 production `.env`; otherwise, the workflow uses `.env.example`.
 
-The RuStore secrets are only required when `publish_to_rustore` is enabled.
-
 Encode a file as one line on Linux:
 
 ```bash
@@ -43,24 +42,23 @@ Never commit the keystore, passwords, or Firebase configuration.
 
 ## Publish a version
 
-1. Merge the version's code into the default branch.
-2. Open **Actions → Release Waggy → Run workflow**.
-3. Select the default branch and enter:
-   - `version_name`: a semantic version such as `1.1.0`;
-   - `version_code`: a positive integer greater than the previous store release;
-   - `whats_new`: the RuStore release notes;
-   - `publish_to_rustore`: whether to upload the AAB to a RuStore draft;
-   - `prerelease`: enable only for alpha, beta, or release-candidate builds.
-4. Run the workflow.
+Merge a pull request into `main`. The merge automatically starts the release
+workflow; direct pushes to `main` trigger it as well.
 
-The workflow refuses to publish from another branch or overwrite an existing
-`v<version_name>` tag. It passes the entered version to Gradle, signs both
-outputs, optionally uploads the AAB to RuStore, creates the tag and GitHub
-Release, and attaches:
+The workflow derives both Android versions from its monotonically increasing
+GitHub Actions run number:
 
-- `Waggy-<version_name>.apk`;
-- `Waggy-<version_name>.aab`;
+- `versionName`: `1.0.<run_number>`;
+- `versionCode`: `<run_number>`.
+
+For example, workflow run 42 publishes version `1.0.42` with version code `42`.
+The workflow refuses to overwrite an existing `v<versionName>` tag, signs both
+outputs, uploads the AAB to a RuStore draft, creates the tag and GitHub Release,
+and attaches:
+
+- `Waggy-<versionName>.apk`;
+- `Waggy-<versionName>.aab`;
 - `SHA256SUMS.txt`.
 
-If a store release has already used a `version_code`, choose a larger one
-before rerunning the workflow.
+Use **Re-run jobs** on the failed workflow run to retry the same version without
+allocating a new version code.

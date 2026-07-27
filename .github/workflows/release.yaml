@@ -1,97 +1,258 @@
-name: Deploy to RuStore
+name: Release Waggy
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: Version name, for example 1.1.0
+        required: true
+        type: string
+      version_code:
+        description: Positive Android version code
+        required: true
+        type: string
+      whats_new:
+        description: Release notes for RuStore
+        required: true
+        default: Исправления ошибок и улучшения
+        type: string
+      publish_to_rustore:
+        description: Upload the signed AAB to a RuStore draft
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: Mark the GitHub release as a prerelease
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ inputs.version_name }}
+  cancel-in-progress: false
 
 jobs:
-  test:
-    name: Unit Test
+  build:
+    name: Build signed release
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup JDK 17
-        uses: actions/setup-java@v5
+      - name: Check out source
+        uses: actions/checkout@v7
         with:
-          distribution: 'temurin'
-          java-version: 17
-          cache: 'gradle'
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Grant execute permissions for gradlew
-        run: chmod +x gradlew
-
-      - name: Restore Firebase configuration
+      - name: Validate release inputs
         env:
-          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
+        shell: bash
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-            echo "GOOGLE_SERVICES_JSON_BASE64 secret is not configured" >&2
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]]; then
+            echo "::error::Run releases from the default branch ($DEFAULT_BRANCH), not $GITHUB_REF_NAME."
             exit 1
           fi
-          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/google-services.json
 
-      - name: Run unit tests
-        run: ./gradlew clean testDebug
+          if [[ ! "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::version_name must use semantic versioning, for example 1.2.0 or 1.2.0-beta.1."
+            exit 1
+          fi
 
-  distribute:
-    name: Distribute bundle to RuStore
-    needs: test
-    runs-on: ubuntu-latest
+          if [[ ! "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::version_code must be a positive integer."
+            exit 1
+          fi
 
-    steps:
-      - uses: actions/checkout@v7
+          if (( ${#VERSION_CODE} > 10 )) || (( 10#$VERSION_CODE > 2100000000 )); then
+            echo "::error::version_code must not exceed 2100000000."
+            exit 1
+          fi
 
-      - name: Setup JDK 17
-        uses: actions/setup-java@v5
+          if git rev-parse --verify --quiet "refs/tags/v$VERSION_NAME"; then
+            echo "::error::Tag v$VERSION_NAME already exists."
+            exit 1
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
         with:
-          distribution: 'temurin'
-          java-version: 17
-          cache: 'gradle'
+          distribution: temurin
+          java-version: "17"
 
-      - name: Grant execute permissions for gradlew
-        run: chmod +x gradlew
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
-      - name: Version Bump
-        uses: chkfung/android-version-actions@v1.2.3
-        with:
-          gradlePath: app/build.gradle.kts
-          versionCode: ${{ github.run_number }}
-
-      - name: Create .env file from Base64 secret
+      - name: Prepare private build files
         env:
           BASE64_ENV: ${{ secrets.BASE64_SECRET }}
-        run: |
-          echo "$BASE64_ENV" | base64 --decode > .env
-
-      - name: Restore Firebase configuration
-        env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+        shell: bash
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-            echo "GOOGLE_SERVICES_JSON_BASE64 secret is not configured" >&2
+          set -euo pipefail
+
+          missing=0
+          for secret_name in \
+            ALIAS \
+            GOOGLE_SERVICES_JSON_BASE64 \
+            KEY_PASSWORD \
+            KEY_STORE_PASSWORD \
+            SIGNING_KEY
+          do
+            if [[ -z "${!secret_name:-}" ]]; then
+              echo "::error::Required repository secret $secret_name is not configured."
+              missing=1
+            fi
+          done
+          if (( missing != 0 )); then
             exit 1
           fi
+
+          umask 077
+          signing_dir="$RUNNER_TEMP/waggy-signing"
+          mkdir -p "$signing_dir"
+
+          printf '%s' "$SIGNING_KEY" | base64 --decode > "$signing_dir/release.jks"
           printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/google-services.json
 
-      - name: Assemble Release Bundle
-        run: ./gradlew bundleRelease
+          if [[ -n "${BASE64_ENV:-}" ]]; then
+            printf '%s' "$BASE64_ENV" | base64 --decode > .env
+          else
+            cp .env.example .env
+          fi
 
-      - name: Sign Release
-        uses: r0adkll/sign-android-release@v1
+      - name: Test, lint, and build signed release
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/waggy-signing/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
+        run: ./gradlew testDebug lintDebug assembleRelease bundleRelease --no-daemon
+
+      - name: Remove private build files
+        if: always()
+        shell: bash
+        run: |
+          rm -f app/google-services.json .env
+          rm -f "$RUNNER_TEMP/waggy-signing/release.jks"
+
+      - name: Prepare release assets
+        env:
+          VERSION_NAME: ${{ inputs.version_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          install -m 0644 \
+            app/build/outputs/apk/release/app-release.apk \
+            "dist/Waggy-$VERSION_NAME.apk"
+          install -m 0644 \
+            app/build/outputs/bundle/release/app-release.aab \
+            "dist/Waggy-$VERSION_NAME.aab"
+          (
+            cd dist
+            sha256sum "Waggy-$VERSION_NAME.apk" "Waggy-$VERSION_NAME.aab" > SHA256SUMS.txt
+          )
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
         with:
-          releaseDirectory: app/build/outputs/bundle/release
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
+          name: Waggy-${{ inputs.version_name }}
+          path: dist/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  rustore:
+    name: Upload RuStore draft
+    if: inputs.publish_to_rustore
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v7
+        with:
+          name: Waggy-${{ inputs.version_name }}
+          path: dist
+
+      - name: Validate RuStore secrets
+        env:
+          RUSTORE_KEY_ID: ${{ secrets.RUSTORE_KEY_ID }}
+          RUSTORE_PRIVATE_KEY: ${{ secrets.RUSTORE_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$RUSTORE_KEY_ID" || -z "$RUSTORE_PRIVATE_KEY" ]]; then
+            echo "::error::RUSTORE_KEY_ID and RUSTORE_PRIVATE_KEY secrets are required."
+            exit 1
+          fi
 
       - name: Upload to RuStore
-        uses: suro4ek/rustore-action@v0.0.1
+        uses: suro4ek/rustore-action@ea9bcd5d56c52bbe47448605e741375c6e7884ab # v0.0.1
         with:
           key_id: ${{ secrets.RUSTORE_KEY_ID }}
           private_key: ${{ secrets.RUSTORE_PRIVATE_KEY }}
-          application_id: 'ru.bitvibe.waggy'
-          file: 'app/build/outputs/bundle/release/app-release.aab'
-          whats_new: 'Исправления ошибок и улучшения'
+          application_id: ru.bitvibe.waggy
+          file: dist/Waggy-${{ inputs.version_name }}.aab
+          whats_new: ${{ inputs.whats_new }}
+
+  github-release:
+    name: Publish GitHub release
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.rustore.result == 'success' || needs.rustore.result == 'skipped')
+    needs:
+      - build
+      - rustore
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v7
+        with:
+          name: Waggy-${{ inputs.version_name }}
+          path: dist
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+          VERSION_NAME: ${{ inputs.version_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_args=(
+            "v$VERSION_NAME"
+            dist/*
+            --target "$GITHUB_SHA"
+            --title "Waggy $VERSION_NAME"
+            --generate-notes
+          )
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            release_args+=(--prerelease)
+          fi
+
+          gh release create "${release_args[@]}"

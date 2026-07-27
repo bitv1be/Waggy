@@ -17,6 +17,31 @@ val env = Properties().apply {
     rootProject.file(".env").takeIf { it.exists() }?.let { load(FileInputStream(it)) }
 }
 
+val releaseVersionCodeInput = providers.environmentVariable("VERSION_CODE").orNull
+val releaseVersionCode = releaseVersionCodeInput?.toIntOrNull()
+val releaseVersionName = providers.environmentVariable("VERSION_NAME").orNull?.takeIf { it.isNotBlank() }
+val releaseKeystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+val releaseKeystorePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull
+val releaseSigningConfigured = listOf(
+    releaseKeystorePath,
+    releaseKeystorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+val releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+
+check(releaseVersionCodeInput == null || releaseVersionCode != null && releaseVersionCode > 0) {
+    "VERSION_CODE must be a positive 32-bit integer."
+}
+check(!releaseTaskRequested || releaseSigningConfigured) {
+    "Release signing is not configured. Set ANDROID_KEYSTORE_PATH, " +
+        "ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD."
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_17
@@ -43,10 +68,21 @@ android {
         applicationId = "ru.bitvibe.waggy"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = releaseVersionCode ?: 1
+        versionName = releaseVersionName ?: "1.0"
         buildConfigField("String", "BASE_URL", env.getProperty("BASE_URL", "\"\""))
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = rootProject.file(requireNotNull(releaseKeystorePath))
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -54,6 +90,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

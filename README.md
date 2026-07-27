@@ -79,4 +79,8 @@ Run device and Compose UI tests with a connected emulator or device:
 ./gradlew connectedDebugAndroidTest
 ```
 
+Signed APK and AAB releases can be published from GitHub Actions. Complete the
+one-time secret setup and follow the release steps in
+[`docs/RELEASING.md`](docs/RELEASING.md).
+
 Contributor conventions and repository-specific workflow guidance are documented in [`AGENTS.md`](AGENTS.md).

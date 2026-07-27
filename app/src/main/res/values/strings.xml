@@ -6,4 +6,21 @@
     <string name="unknown_error">Unknown error</string>
     <string name="failed_get_new_breed">Perhaps you forgot to add your favorite breeds to the list</string>
     <string name="try_again">Refresh</string>
+    <string name="version_format">Version %1$s (%2$d)</string>
+    <string name="updates_title">Updates from GitHub</string>
+    <string name="check_for_updates">Check for updates</string>
+    <string name="checking_for_updates">Checking GitHub for updates…</string>
+    <string name="app_is_up_to_date">You have the latest version.</string>
+    <string name="check_again">Check again</string>
+    <string name="update_available">Version %1$s is available (%2$s).</string>
+    <string name="download_and_install">Download and install</string>
+    <string name="downloading_update">Downloading update…</string>
+    <string name="downloading_update_progress">Downloading update: %1$d%%</string>
+    <string name="opening_installer">Opening Android installer…</string>
+    <string name="update_ready_to_install">The APK is downloaded and ready to install.</string>
+    <string name="install_permission_needed">Allow Waggy to install unknown apps, then try again.</string>
+    <string name="could_not_open_installer">Android could not open the package installer.</string>
+    <string name="install_update">Install update</string>
+    <string name="update_check_failed">Could not check GitHub for updates.</string>
+    <string name="update_download_failed">Could not download or verify the update.</string>
 </resources>

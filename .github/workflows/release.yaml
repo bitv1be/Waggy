@@ -8,7 +8,6 @@ on:
 env:
   VERSION_CODE: ${{ github.run_number }}
   VERSION_NAME: 1.0.${{ github.run_number }}
-  WHATS_NEW: Исправления ошибок и улучшения
 
 permissions:
   contents: read
@@ -119,7 +118,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew testDebug lintDebug assembleRelease bundleRelease --no-daemon
+        run: ./gradlew testDebug lintDebug assembleRelease --no-daemon
 
       - name: Remove private build files
         if: always()
@@ -137,12 +136,9 @@ jobs:
           install -m 0644 \
             app/build/outputs/apk/release/app-release.apk \
             "dist/Waggy-$VERSION_NAME.apk"
-          install -m 0644 \
-            app/build/outputs/bundle/release/app-release.aab \
-            "dist/Waggy-$VERSION_NAME.aab"
           (
             cd dist
-            sha256sum "Waggy-$VERSION_NAME.apk" "Waggy-$VERSION_NAME.aab" > SHA256SUMS.txt
+            sha256sum "Waggy-$VERSION_NAME.apk" > SHA256SUMS.txt
           )
 
       - name: Upload workflow artifact
@@ -154,46 +150,9 @@ jobs:
           compression-level: 0
           retention-days: 30
 
-  rustore:
-    name: Upload RuStore draft
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Download release assets
-        uses: actions/download-artifact@v7
-        with:
-          name: Waggy-${{ env.VERSION_NAME }}
-          path: dist
-
-      - name: Validate RuStore secrets
-        env:
-          RUSTORE_KEY_ID: ${{ secrets.RUSTORE_KEY_ID }}
-          RUSTORE_PRIVATE_KEY: ${{ secrets.RUSTORE_PRIVATE_KEY }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ -z "$RUSTORE_KEY_ID" || -z "$RUSTORE_PRIVATE_KEY" ]]; then
-            echo "::error::RUSTORE_KEY_ID and RUSTORE_PRIVATE_KEY secrets are required."
-            exit 1
-          fi
-
-      - name: Upload to RuStore
-        uses: suro4ek/rustore-action@ea9bcd5d56c52bbe47448605e741375c6e7884ab # v0.0.1
-        with:
-          key_id: ${{ secrets.RUSTORE_KEY_ID }}
-          private_key: ${{ secrets.RUSTORE_PRIVATE_KEY }}
-          application_id: ru.bitvibe.waggy
-          file: dist/Waggy-${{ env.VERSION_NAME }}.aab
-          whats_new: ${{ env.WHATS_NEW }}
-
   github-release:
     name: Publish GitHub release
-    needs:
-      - build
-      - rustore
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

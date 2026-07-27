@@ -1,9 +1,9 @@
 # Releasing Waggy
 
-The `Release Waggy` GitHub Actions workflow builds a signed APK and AAB, runs
-the local tests and Android lint, uploads the AAB to a RuStore draft, and
-publishes the binaries with SHA-256 checksums in a GitHub Release after every
-update to the `main` branch.
+The `Release Waggy` GitHub Actions workflow builds a signed APK, runs the local
+tests and Android lint, and publishes the APK with its SHA-256 checksum in a
+GitHub Release after every update to the `main` branch. GitHub Releases are the
+app's update source; no app store is involved.
 
 ## One-time repository setup
 
@@ -18,8 +18,6 @@ Actions**:
 | `ALIAS`                       | Signing key alias                         |
 | `KEY_PASSWORD`                | Signing key password                      |
 | `GOOGLE_SERVICES_JSON_BASE64` | Base64-encoded `app/google-services.json` |
-| `RUSTORE_KEY_ID`              | RuStore API key ID                        |
-| `RUSTORE_PRIVATE_KEY`         | RuStore private API key                   |
 
 `BASE64_SECRET` is optional. If set, it must contain the base64-encoded
 production `.env`; otherwise, the workflow uses `.env.example`.
@@ -52,13 +50,16 @@ GitHub Actions run number:
 - `versionCode`: `<run_number>`.
 
 For example, workflow run 42 publishes version `1.0.42` with version code `42`.
-The workflow refuses to overwrite an existing `v<versionName>` tag, signs both
-outputs, uploads the AAB to a RuStore draft, creates the tag and GitHub Release,
-and attaches:
+The workflow refuses to overwrite an existing `v<versionName>` tag, signs the
+APK, creates the tag and GitHub Release, and attaches:
 
 - `Waggy-<versionName>.apk`;
-- `Waggy-<versionName>.aab`;
 - `SHA256SUMS.txt`.
+
+Installed builds check this public GitHub Release from the Settings screen,
+download a newer APK directly, and then open Android's package installer. The
+user must approve installation, and Android only accepts the update when it is
+signed with the same production key as the installed app.
 
 Use **Re-run jobs** on the failed workflow run to retry the same version without
 allocating a new version code.

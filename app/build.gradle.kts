@@ -71,6 +71,11 @@ android {
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersionName ?: "1.0"
         buildConfigField("String", "BASE_URL", env.getProperty("BASE_URL", "\"\""))
+        buildConfigField(
+            "String",
+            "GITHUB_RELEASES_API_URL",
+            "\"https://api.github.com/repos/SS1GGzxc/Waggy/\"",
+        )
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -9,6 +9,7 @@ Waggy is an Android app for discovering dog breeds and keeping a personal list o
 - Save favorite breeds and sub-breeds locally.
 - Show random favorites in a configurable Glance widget.
 - Choose light or dark theme preferences.
+- Check, download, and install signed updates directly from GitHub Releases.
 - Create layered dog imagery with on-device ML Kit subject segmentation.
 
 ## Tech stack
@@ -79,8 +80,9 @@ Run device and Compose UI tests with a connected emulator or device:
 ./gradlew connectedDebugAndroidTest
 ```
 
-Signed APK and AAB releases can be published from GitHub Actions. Complete the
-one-time secret setup and follow the release steps in
+Signed APK releases can be published from GitHub Actions and are used by the
+in-app updater without an app store. Complete the one-time secret setup and
+follow the release steps in
 [`docs/RELEASING.md`](docs/RELEASING.md).
 
 Contributor conventions and repository-specific workflow guidance are documented in [`AGENTS.md`](AGENTS.md).

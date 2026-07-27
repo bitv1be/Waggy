@@ -1,5 +1,11 @@
 package ru.bitvibe.waggy.presentation.settings
 
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,8 +15,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.bitvibe.waggy.presentation.settings.widgets.AboutSettingsCard
@@ -26,9 +34,51 @@ fun SettingsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkMode.collectAsStateWithLifecycle()
     val widgetPeriodMinutes by viewModel.widgetPeriodMinutes.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    fun launchInstaller(apkUri: String) {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(apkUri.toUri(), APK_MIME_TYPE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        runCatching { context.startActivity(intent) }
+            .onSuccess { viewModel.onEvent(SettingsEvent.OnInstallerLaunched) }
+            .onFailure { viewModel.onEvent(SettingsEvent.OnInstallLaunchFailed) }
+    }
+
+    val installPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        val apkUri = when (val updateState = state.appUpdateState) {
+            is AppUpdateUiState.ReadyToInstall -> updateState.apkUri
+            is AppUpdateUiState.Downloaded -> updateState.apkUri
+            else -> null
+        }
+        if (context.canInstallUnknownApps() && apkUri != null) {
+            launchInstaller(apkUri)
+        } else {
+            viewModel.onEvent(SettingsEvent.OnInstallPermissionDenied)
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.onEvent(SettingsEvent.OnRefresh)
+        viewModel.onEvent(SettingsEvent.OnCheckForUpdate)
+    }
+
+    LaunchedEffect(state.appUpdateState) {
+        val readyUpdate = state.appUpdateState as? AppUpdateUiState.ReadyToInstall
+            ?: return@LaunchedEffect
+        if (context.canInstallUnknownApps()) {
+            launchInstaller(readyUpdate.apkUri)
+        } else {
+            val permissionIntent = Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                "package:${context.packageName}".toUri(),
+            )
+            runCatching { installPermissionLauncher.launch(permissionIntent) }
+                .onFailure { viewModel.onEvent(SettingsEvent.OnInstallLaunchFailed) }
+        }
     }
 
     Scaffold(
@@ -100,8 +150,38 @@ fun SettingsScreen(
                 Spacer(Modifier.height(16.dp))
                 Text("About", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                AboutSettingsCard()
+                AboutSettingsCard(
+                    appUpdateState = state.appUpdateState,
+                    onCheckForUpdate = {
+                        viewModel.onEvent(SettingsEvent.OnCheckForUpdate)
+                    },
+                    onDownloadUpdate = {
+                        viewModel.onEvent(SettingsEvent.OnDownloadUpdate)
+                    },
+                    onInstallUpdate = { apkUri ->
+                        if (context.canInstallUnknownApps()) {
+                            launchInstaller(apkUri)
+                        } else {
+                            val permissionIntent = Intent(
+                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                "package:${context.packageName}".toUri(),
+                            )
+                            runCatching {
+                                installPermissionLauncher.launch(permissionIntent)
+                            }.onFailure {
+                                viewModel.onEvent(SettingsEvent.OnInstallLaunchFailed)
+                            }
+                        }
+                    },
+                )
             }
         }
     }
 }
+
+private fun Context.canInstallUnknownApps(): Boolean {
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+        packageManager.canRequestPackageInstalls()
+}
+
+private const val APK_MIME_TYPE = "application/vnd.android.package-archive"

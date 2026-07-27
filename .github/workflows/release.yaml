@@ -1,37 +1,20 @@
 name: Release Waggy
 
 on:
-  workflow_dispatch:
-    inputs:
-      version_name:
-        description: Version name, for example 1.1.0
-        required: true
-        type: string
-      version_code:
-        description: Positive Android version code
-        required: true
-        type: string
-      whats_new:
-        description: Release notes for RuStore
-        required: true
-        default: Исправления ошибок и улучшения
-        type: string
-      publish_to_rustore:
-        description: Upload the signed AAB to a RuStore draft
-        required: true
-        default: true
-        type: boolean
-      prerelease:
-        description: Mark the GitHub release as a prerelease
-        required: true
-        default: false
-        type: boolean
+  push:
+    branches:
+      - main
+
+env:
+  VERSION_CODE: ${{ github.run_number }}
+  VERSION_NAME: 1.0.${{ github.run_number }}
+  WHATS_NEW: Исправления ошибок и улучшения
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-release-${{ inputs.version_name }}
+  group: android-release-main
   cancel-in-progress: false
 
 jobs:
@@ -47,17 +30,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate release inputs
+      - name: Validate automatic version
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          VERSION_CODE: ${{ inputs.version_code }}
-          VERSION_NAME: ${{ inputs.version_name }}
         shell: bash
         run: |
           set -euo pipefail
 
           if [[ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]]; then
-            echo "::error::Run releases from the default branch ($DEFAULT_BRANCH), not $GITHUB_REF_NAME."
+            echo "::error::Automatic releases must run from the default branch ($DEFAULT_BRANCH)."
             exit 1
           fi
 
@@ -138,8 +119,6 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          VERSION_CODE: ${{ inputs.version_code }}
-          VERSION_NAME: ${{ inputs.version_name }}
         run: ./gradlew testDebug lintDebug assembleRelease bundleRelease --no-daemon
 
       - name: Remove private build files
@@ -150,8 +129,6 @@ jobs:
           rm -f "$RUNNER_TEMP/waggy-signing/release.jks"
 
       - name: Prepare release assets
-        env:
-          VERSION_NAME: ${{ inputs.version_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -171,7 +148,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Waggy-${{ inputs.version_name }}
+          name: Waggy-${{ env.VERSION_NAME }}
           path: dist/
           if-no-files-found: error
           compression-level: 0
@@ -179,7 +156,6 @@ jobs:
 
   rustore:
     name: Upload RuStore draft
-    if: inputs.publish_to_rustore
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -188,7 +164,7 @@ jobs:
       - name: Download release assets
         uses: actions/download-artifact@v7
         with:
-          name: Waggy-${{ inputs.version_name }}
+          name: Waggy-${{ env.VERSION_NAME }}
           path: dist
 
       - name: Validate RuStore secrets
@@ -210,15 +186,11 @@ jobs:
           key_id: ${{ secrets.RUSTORE_KEY_ID }}
           private_key: ${{ secrets.RUSTORE_PRIVATE_KEY }}
           application_id: ru.bitvibe.waggy
-          file: dist/Waggy-${{ inputs.version_name }}.aab
-          whats_new: ${{ inputs.whats_new }}
+          file: dist/Waggy-${{ env.VERSION_NAME }}.aab
+          whats_new: ${{ env.WHATS_NEW }}
 
   github-release:
     name: Publish GitHub release
-    if: >-
-      always() &&
-      needs.build.result == 'success' &&
-      (needs.rustore.result == 'success' || needs.rustore.result == 'skipped')
     needs:
       - build
       - rustore
@@ -232,14 +204,12 @@ jobs:
       - name: Download release assets
         uses: actions/download-artifact@v7
         with:
-          name: Waggy-${{ inputs.version_name }}
+          name: Waggy-${{ env.VERSION_NAME }}
           path: dist
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          IS_PRERELEASE: ${{ inputs.prerelease }}
-          VERSION_NAME: ${{ inputs.version_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -251,8 +221,5 @@ jobs:
             --title "Waggy $VERSION_NAME"
             --generate-notes
           )
-          if [[ "$IS_PRERELEASE" == "true" ]]; then
-            release_args+=(--prerelease)
-          fi
 
           gh release create "${release_args[@]}"

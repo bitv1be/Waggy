@@ -12,6 +12,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import ru.bitvibe.waggy.data.local.AppDatabase
+import ru.bitvibe.waggy.data.remote.GitHubReleaseApi
 import javax.inject.Singleton
 
 @Module
@@ -31,6 +32,15 @@ object AppModule {
             .baseUrl(BuildConfig.BASE_URL)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
+
+    @Provides
+    @Singleton
+    fun provideGitHubReleaseApi(): GitHubReleaseApi =
+        Retrofit.Builder()
+            .baseUrl(BuildConfig.GITHUB_RELEASES_API_URL)
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+            .create(GitHubReleaseApi::class.java)
 
     @Provides
     @Singleton

@@ -6,4 +6,21 @@
     <string name="unknown_error">Неизвестная ошибка</string>
     <string name="failed_get_new_breed">Возможно вы забыли добавть в израбное любимые породы</string>
     <string name="try_again">Обновить</string>
+    <string name="version_format">Версия %1$s (%2$d)</string>
+    <string name="updates_title">Обновления с GitHub</string>
+    <string name="check_for_updates">Проверить обновления</string>
+    <string name="checking_for_updates">Проверяем обновления на GitHub…</string>
+    <string name="app_is_up_to_date">У вас установлена последняя версия.</string>
+    <string name="check_again">Проверить ещё раз</string>
+    <string name="update_available">Доступна версия %1$s (%2$s).</string>
+    <string name="download_and_install">Скачать и установить</string>
+    <string name="downloading_update">Скачиваем обновление…</string>
+    <string name="downloading_update_progress">Скачиваем обновление: %1$d%%</string>
+    <string name="opening_installer">Открываем установщик Android…</string>
+    <string name="update_ready_to_install">APK скачан и готов к установке.</string>
+    <string name="install_permission_needed">Разрешите Waggy устанавливать неизвестные приложения и повторите попытку.</string>
+    <string name="could_not_open_installer">Android не удалось открыть установщик пакетов.</string>
+    <string name="install_update">Установить обновление</string>
+    <string name="update_check_failed">Не удалось проверить обновления на GitHub.</string>
+    <string name="update_download_failed">Не удалось скачать или проверить обновление.</string>
 </resources>

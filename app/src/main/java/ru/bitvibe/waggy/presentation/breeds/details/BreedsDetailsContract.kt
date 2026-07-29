@@ -10,7 +10,8 @@ data class BreedsDetailsUiState(
     val favorites: List<Favorite> = emptyList(),
     val error: String? = null,
     val isSegmenting: Boolean = false,
-    val foregroundBitmap: Bitmap? = null
+    val foregroundBitmap: Bitmap? = null,
+    val dominantColorArgb: Int? = null,
 )
 
 sealed interface BreedsDetailsEvent {

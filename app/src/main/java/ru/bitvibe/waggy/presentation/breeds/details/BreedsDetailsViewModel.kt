@@ -30,6 +30,7 @@ import ru.bitvibe.waggy.domain.usecase.GetBreedByNameUseCase
 import ru.bitvibe.waggy.domain.usecase.ToggleBreedFavoriteUseCase
 import ru.bitvibe.waggy.domain.usecase.ToggleBreedParams
 import ru.bitvibe.waggy.domain.usecase.UseCase
+import ru.bitvibe.waggy.presentation.common.extractDominantPhotoColor
 import javax.inject.Inject
 import kotlin.coroutines.resume
 
@@ -62,7 +63,12 @@ class BreedsDetailsViewModel @Inject constructor(
         when (event) {
             is BreedsDetailsEvent.OnRefresh -> {
                 _state.value.foregroundBitmap?.recycle()
-                _state.update { it.copy(foregroundBitmap = null) }
+                _state.update {
+                    it.copy(
+                        foregroundBitmap = null,
+                        dominantColorArgb = null,
+                    )
+                }
                 loadBreed()
             }
 
@@ -158,6 +164,8 @@ class BreedsDetailsViewModel @Inject constructor(
                 val result = loader.execute(request)
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
+                    val dominantColorArgb = extractDominantPhotoColor(bitmap)
+                    _state.update { it.copy(dominantColorArgb = dominantColorArgb) }
                     val foreground = segmentDog(bitmap)
                     _state.update {
                         it.copy(

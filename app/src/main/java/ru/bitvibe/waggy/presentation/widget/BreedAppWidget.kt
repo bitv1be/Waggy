@@ -1,9 +1,11 @@
 package ru.bitvibe.waggy.presentation.widget
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.Button
@@ -33,7 +35,10 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import ru.bitvibe.waggy.R
+import ru.bitvibe.waggy.presentation.common.createPhotoTones
+import ru.bitvibe.waggy.presentation.common.extractDominantPhotoColor
 
 object BreedAppWidget : GlanceAppWidget() {
     override val stateDefinition: GlanceStateDefinition<*> = BreedWidgetStateDefinition
@@ -98,22 +103,34 @@ object BreedAppWidget : GlanceAppWidget() {
     @Composable
     fun BreedWidgetContent(
         context: Context,
-        state: BreedWidgetState.Loaded
+        state: BreedWidgetState.Loaded,
     ) {
-        val backgroundColor = GlanceTheme.colors.primaryContainer.getColor(context)
-            .copy(alpha = 0.75f)
+        val backgroundBitmap = BitmapFactory.decodeByteArray(
+            state.backgroundImage,
+            0,
+            state.backgroundImage.size,
+        )
+        val dominantColor = extractDominantPhotoColor(backgroundBitmap)
+        val photoTones = dominantColor?.let {
+            createPhotoTones(
+                sourceArgb = it,
+                darkTheme = context.resources.configuration.uiMode and
+                    Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES,
+            )
+        }
+        val labelBackgroundColor = photoTones?.containerArgb?.let(::Color)
+            ?: GlanceTheme.colors.primaryContainer.getColor(context)
+        val labelContentColor = photoTones?.contentArgb?.let(::Color)
+            ?: GlanceTheme.colors.onPrimaryContainer.getColor(context)
+        val breedText = state.subBreedName?.let { "$it ${state.breedName}" }
+            ?: state.breedName
+        val displayName = breedText.replaceFirstChar { it.uppercase() }
 
         Box(
-            modifier = GlanceModifier.fillMaxSize()
-                .background(
-                    ImageProvider(
-                        BitmapFactory.decodeByteArray(
-                            state.backgroundImage,
-                            0,
-                            state.backgroundImage.size
-                        )
-                    )
-                )
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .cornerRadius(24.dp)
+                .background(ImageProvider(backgroundBitmap))
                 .clickable(onClick = actionRunCallback<RefreshAction>()),
         ) {
             if (state.foregroundImage != null) {
@@ -122,10 +139,13 @@ object BreedAppWidget : GlanceAppWidget() {
                         BitmapFactory.decodeByteArray(
                             state.foregroundImage,
                             0,
-                            state.foregroundImage.size
-                        )
+                            state.foregroundImage.size,
+                        ),
                     ),
-                    contentDescription = null,
+                    contentDescription = context.getString(
+                        R.string.breed_photo_description,
+                        displayName,
+                    ),
                     modifier = GlanceModifier.fillMaxSize(),
                 )
             }
@@ -139,22 +159,16 @@ object BreedAppWidget : GlanceAppWidget() {
                 Box(
                     modifier = GlanceModifier
                         .padding(8.dp)
-                        .cornerRadius(8.dp)
-                        .background(
-                            backgroundColor
-                        )
+                        .cornerRadius(16.dp)
+                        .background(labelBackgroundColor.copy(alpha = 0.9f)),
                 ) {
-                    val breedText =
-                        state.subBreedName?.let { "$it ${state.breedName}" }
-                            ?: state.breedName
-
                     Text(
-                        text = breedText.replaceFirstChar { it.uppercase() },
+                        text = displayName,
                         style = TextStyle(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            color = GlanceTheme.colors.onBackground
-                        )
+                            color = ColorProvider(labelContentColor),
+                        ),
                     )
                 }
             }

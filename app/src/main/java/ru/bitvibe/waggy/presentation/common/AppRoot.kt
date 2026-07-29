@@ -1,6 +1,13 @@
 package ru.bitvibe.waggy.presentation.common
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
@@ -14,16 +21,39 @@ import ru.bitvibe.waggy.presentation.homeScreen
 fun AppRoot() {
     val navController = rememberNavController()
 
-    NavHost(
-        navController = navController,
-        startDestination = HomeDestination,
-        modifier = Modifier.fillMaxSize()
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
     ) {
-        homeScreen { name ->
-            navController.navigateToBreedsDetailsScreen(name)
-        }
-        breedsDetailsScreen {
-            navController.navigateUp()
+        NavHost(
+            navController = navController,
+            startDestination = HomeDestination,
+            modifier = Modifier.fillMaxSize(),
+            enterTransition = {
+                fadeIn(tween(SCREEN_TRANSITION_MILLIS)) +
+                    slideInHorizontally(tween(SCREEN_TRANSITION_MILLIS)) { it / 12 }
+            },
+            exitTransition = {
+                fadeOut(tween(SCREEN_TRANSITION_MILLIS)) +
+                    slideOutHorizontally(tween(SCREEN_TRANSITION_MILLIS)) { -it / 12 }
+            },
+            popEnterTransition = {
+                fadeIn(tween(SCREEN_TRANSITION_MILLIS)) +
+                    slideInHorizontally(tween(SCREEN_TRANSITION_MILLIS)) { -it / 12 }
+            },
+            popExitTransition = {
+                fadeOut(tween(SCREEN_TRANSITION_MILLIS)) +
+                    slideOutHorizontally(tween(SCREEN_TRANSITION_MILLIS)) { it / 12 }
+            },
+        ) {
+            homeScreen { name ->
+                navController.navigateToBreedsDetailsScreen(name)
+            }
+            breedsDetailsScreen {
+                navController.navigateUp()
+            }
         }
     }
 }
+
+private const val SCREEN_TRANSITION_MILLIS = 220

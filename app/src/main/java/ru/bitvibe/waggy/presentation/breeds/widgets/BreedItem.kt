@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -48,6 +49,8 @@ fun BreedItem(
     breed: Breed,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    supportingText: String? = null,
+    badgeText: String? = null,
 ) {
     val dominantPhotoColor = rememberDominantPhotoColor(breed.imageUrl)
     val targetPalette = photoPalette(dominantPhotoColor.argb)
@@ -122,6 +125,22 @@ fun BreedItem(
                         strokeWidth = 2.dp,
                     )
                 }
+                badgeText?.let { text ->
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp),
+                        shape = MaterialTheme.shapes.small,
+                        color = accentColor,
+                        contentColor = onAccentColor,
+                    ) {
+                        Text(
+                            text = text,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
             }
 
             Row(
@@ -131,13 +150,27 @@ fun BreedItem(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = displayName,
+                Column(
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = contentColor,
-                )
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = contentColor,
+                    )
+                    supportingText?.let { text ->
+                        Text(
+                            text = text,
+                            minLines = 2,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = contentColor.copy(alpha = SUPPORTING_TEXT_ALPHA),
+                        )
+                    }
+                }
                 if (breed.subBreeds.isNotEmpty()) {
                     Surface(
                         shape = MaterialTheme.shapes.small,
@@ -162,3 +195,4 @@ fun BreedItem(
 
 private const val PALETTE_TRANSITION_MILLIS = 420
 private const val PHOTO_ASPECT_RATIO = 4f / 3f
+private const val SUPPORTING_TEXT_ALPHA = 0.82f

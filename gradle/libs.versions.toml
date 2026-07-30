@@ -22,6 +22,7 @@ material = "1.14.0"
 json = "1.11.0"
 coli = "3.5.0"
 segmentation = "16.0.0-beta1"
+languageId = "17.0.6"
 material3 = "1.5.0-alpha24"
 firebase-bom = "34.16.0"
 google-services = "4.5.0"
@@ -62,9 +63,11 @@ work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "w
 hilt-work = { module = "androidx.hilt:hilt-work", version.ref = "hilt-work" }
 hilt-compiler-androidx = { module = "androidx.hilt:hilt-compiler", version.ref = "hilt-work" }
 mlkit-segmentation = { module = "com.google.android.gms:play-services-mlkit-subject-segmentation", version.ref = "segmentation" }
+mlkit-language-id = { module = "com.google.mlkit:language-id", version.ref = "languageId" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-ai = { module = "com.google.firebase:firebase-ai" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

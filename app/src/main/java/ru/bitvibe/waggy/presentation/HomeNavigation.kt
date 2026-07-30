@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object HomeDestination
 
-fun NavGraphBuilder.homeScreen(onNavigateToBreedsDetails: (String) -> Unit) {
+fun NavGraphBuilder.homeScreen(onNavigateToBreedsDetails: (String, String?) -> Unit) {
     composable<HomeDestination> {
         HomeScreen(onNavigateToBreedsDetails)
     }

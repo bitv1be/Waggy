@@ -7,15 +7,19 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class BreedsDetailsDestination(
-    val name: String
+    val name: String,
+    val recommendationReason: String? = null,
 )
 
 fun NavGraphBuilder.breedsDetailsScreen(onNavigateBack: () -> Unit) {
     composable<BreedsDetailsDestination> {
-        BreedsDetailsScreen(onNavigateBack)
+        BreedsDetailsScreen(onNavigateBack = onNavigateBack)
     }
 }
 
-fun NavController.navigateToBreedsDetailsScreen(name: String) {
-    navigate(BreedsDetailsDestination(name))
+fun NavController.navigateToBreedsDetailsScreen(
+    name: String,
+    recommendationReason: String? = null,
+) {
+    navigate(BreedsDetailsDestination(name, recommendationReason))
 }

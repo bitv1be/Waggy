@@ -5,6 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import ru.bitvibe.waggy.domain.models.Breed
+import ru.bitvibe.waggy.domain.models.BreedRecommendation
+import ru.bitvibe.waggy.domain.models.RecommendationReason
+import ru.bitvibe.waggy.domain.models.RecommendationResult
+import ru.bitvibe.waggy.domain.models.RecommendationSource
+import ru.bitvibe.waggy.presentation.breeds.RecommendationsUiState
+import ru.bitvibe.waggy.presentation.breeds.details.BreedDescriptionUiState
 import ru.bitvibe.waggy.presentation.breeds.details.BreedsDetailsContent
 import ru.bitvibe.waggy.presentation.breeds.widgets.BreedContent
 
@@ -20,7 +26,21 @@ private fun BreedGridPreview() {
     WaggyTheme {
         BreedContent(
             breeds = previewBreeds,
-            onNavigateToBreedsDetails = {},
+            recommendations = RecommendationsUiState.Content(
+                RecommendationResult(
+                    recommendations = listOf(
+                        BreedRecommendation(
+                            breed = previewBreeds.first(),
+                            reason = RecommendationReason.AiGenerated(
+                                explanation = "Friendly and easy to train.",
+                            ),
+                        ),
+                    ),
+                    source = RecommendationSource.POPULAR,
+                ),
+            ),
+            onNavigateToBreedsDetails = { _, _ -> },
+            onRetryRecommendations = {},
         )
     }
 }
@@ -42,6 +62,10 @@ private fun BreedDetailsPreview() {
             dominantColorArgb = 0xFF8A5A3C.toInt(),
             onToggleBreedFavorite = {},
             onToggleSubBreedFavorite = { _, _ -> },
+            recommendationReason = "Friendly, trainable, and a strong match for your favorites.",
+            descriptionState = BreedDescriptionUiState.Content(
+                "This energetic, people-focused breed thrives with patient training, daily activity, and regular grooming.",
+            ),
         )
     }
 }

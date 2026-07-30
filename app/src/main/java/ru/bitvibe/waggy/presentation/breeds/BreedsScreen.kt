@@ -41,7 +41,7 @@ import ru.bitvibe.waggy.presentation.breeds.widgets.BreedContent
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BreedsScreen(
-    onNavigateToBreedsDetails: (String) -> Unit,
+    onNavigateToBreedsDetails: (String, String?) -> Unit,
     viewModel: BreedsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -85,7 +85,11 @@ fun BreedsScreen(
                     BreedsContentState.CONTENT -> {
                         BreedContent(
                             breeds = state.breeds,
+                            recommendations = state.recommendations,
                             onNavigateToBreedsDetails = onNavigateToBreedsDetails,
+                            onRetryRecommendations = {
+                                viewModel.onEvent(BreedsEvent.OnRetryRecommendations)
+                            },
                         )
                     }
 

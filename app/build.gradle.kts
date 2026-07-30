@@ -73,6 +73,11 @@ android {
         buildConfigField("String", "BASE_URL", env.getProperty("BASE_URL", "\"\""))
         buildConfigField(
             "String",
+            "FIREBASE_AI_MODEL",
+            env.getProperty("FIREBASE_AI_MODEL", "\"gemini-3.5-flash-lite\""),
+        )
+        buildConfigField(
+            "String",
             "GITHUB_RELEASES_API_URL",
             "\"https://api.github.com/repos/SS1GGzxc/Waggy/\"",
         )
@@ -185,8 +190,9 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 
-    // MLKit Segmentation
+    // ML Kit
     implementation(libs.mlkit.segmentation)
+    implementation(libs.mlkit.language.id)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
@@ -196,4 +202,7 @@ dependencies {
 
     // Analytics
     implementation(libs.firebase.analytics)
+
+    // AI Logic
+    implementation(libs.firebase.ai)
 }

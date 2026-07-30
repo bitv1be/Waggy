@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.analytics
 import com.google.firebase.crashlytics.crashlytics
+import com.google.firebase.initialize
 import dagger.hilt.EntryPoint
 import dagger.hilt.EntryPoints
 import dagger.hilt.InstallIn
@@ -18,8 +19,9 @@ class MainApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        Firebase.initialize(this)
         Firebase.analytics.setAnalyticsCollectionEnabled(true)
-        Firebase.crashlytics.setCrashlyticsCollectionEnabled(true)
+        Firebase.crashlytics.isCrashlyticsCollectionEnabled = true
     }
 
     @EntryPoint

@@ -46,8 +46,8 @@ fun AppRoot() {
                     slideOutHorizontally(tween(SCREEN_TRANSITION_MILLIS)) { it / 12 }
             },
         ) {
-            homeScreen { name ->
-                navController.navigateToBreedsDetailsScreen(name)
+            homeScreen { name, recommendationReason ->
+                navController.navigateToBreedsDetailsScreen(name, recommendationReason)
             }
             breedsDetailsScreen {
                 navController.navigateUp()

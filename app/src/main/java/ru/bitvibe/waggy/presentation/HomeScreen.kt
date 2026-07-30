@@ -43,7 +43,7 @@ import ru.bitvibe.waggy.presentation.settings.settingsScreen
 
 @Composable
 fun HomeScreen(
-    onNavigateToBreedsDetails: (String) -> Unit,
+    onNavigateToBreedsDetails: (String, String?) -> Unit,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -94,7 +94,7 @@ fun HomeScreen(
 @Composable
 private fun HomeNavHost(
     navController: NavHostController,
-    onNavigateToBreedsDetails: (String) -> Unit,
+    onNavigateToBreedsDetails: (String, String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(

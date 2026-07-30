@@ -5,7 +5,8 @@ import com.google.firebase.crashlytics.crashlytics
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import ru.bitvibe.waggy.BuildConfig
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import ru.bitvibe.waggy.data.local.BreedEntity
 import ru.bitvibe.waggy.data.local.BreedsDao
 import ru.bitvibe.waggy.data.local.SubBreedEntity
@@ -22,23 +23,25 @@ class BreedRepositoryImpl @Inject constructor(
     private val dao: BreedsDao,
 ) : BreedRepository {
 
-    override suspend fun getAll(): List<Breed> = coroutineScope {
+    override suspend fun getAll(forceRefresh: Boolean): List<Breed> = coroutineScope {
         val cached = dao.getAllBreedsWithSubBreeds()
-        if (cached.isNotEmpty()) {
+        if (cached.isNotEmpty() && !forceRefresh) {
             return@coroutineScope cached.toDomainList()
         }
 
         val remote = api.getAll()
 
-        if (remote.status == "success") {
+        if (remote.status == SUCCESS_STATUS) {
             val breedEntities = mutableListOf<BreedEntity>()
             val subBreedEntities = mutableListOf<SubBreedEntity>()
 
             val deferredBreeds = remote.message.keys.map { breedName ->
                 async {
                     val imageUrl = try {
-                        val imagePath = api.getRandomImageForBreed(breedName).message
-                        "${BuildConfig.BASE_URL.trimEnd('/')}/${imagePath.trimStart('/')}"
+                        val imageResponse = api.getRandomImageForBreed(breedName)
+                        imageResponse.message.takeIf {
+                            imageResponse.status == SUCCESS_STATUS && it.isNotBlank()
+                        }
                     } catch (e: Exception) {
                         val message = e.message ?: "Unknown error"
                         Firebase.crashlytics.log(message)
@@ -56,8 +59,8 @@ class BreedRepositoryImpl @Inject constructor(
                     subBreedEntities.add(
                         SubBreedEntity(
                             parentBreedName = breedName,
-                            subBreedName = subBreedName
-                        )
+                            subBreedName = subBreedName,
+                        ),
                     )
                 }
             }
@@ -76,6 +79,12 @@ class BreedRepositoryImpl @Inject constructor(
     override suspend fun getAllFavorites(): List<Favorite> {
         val result = dao.getAllFavorites()
         return result.map { it.toModel() }
+    }
+
+    override fun observeAllFavorites(): Flow<List<Favorite>> {
+        return dao.observeAllFavorites().map { favorites ->
+            favorites.map { it.toModel() }
+        }
     }
 
     override suspend fun toggleBreedFavorite(
@@ -119,5 +128,9 @@ class BreedRepositoryImpl @Inject constructor(
             subBreedName = randomFavorite.subBreedName,
             imageUrl = imageUrl
         )
+    }
+
+    private companion object {
+        const val SUCCESS_STATUS = "success"
     }
 }

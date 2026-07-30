@@ -19,7 +19,9 @@ import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -30,6 +32,9 @@ import ru.bitvibe.waggy.domain.usecase.GetBreedByNameUseCase
 import ru.bitvibe.waggy.domain.usecase.ToggleBreedFavoriteUseCase
 import ru.bitvibe.waggy.domain.usecase.ToggleBreedParams
 import ru.bitvibe.waggy.domain.usecase.UseCase
+import ru.bitvibe.waggy.domain.repository.BreedDescriptionProvider
+import ru.bitvibe.waggy.domain.repository.BreedDescriptionRequest
+import ru.bitvibe.waggy.domain.models.Breed
 import ru.bitvibe.waggy.presentation.common.extractDominantPhotoColor
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -40,7 +45,8 @@ class BreedsDetailsViewModel @Inject constructor(
     private val getBreedByNameUseCase: GetBreedByNameUseCase,
     private val getAllFavoritesUseCase: GetAllFavoritesUseCase,
     private val toggleBreedFavoriteUseCase: ToggleBreedFavoriteUseCase,
-    savedStateHandle: SavedStateHandle
+    private val breedDescriptionProvider: BreedDescriptionProvider,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private companion object {
         const val TAG = "BreedsDetailsViewModel"
@@ -50,10 +56,16 @@ class BreedsDetailsViewModel @Inject constructor(
         .enableForegroundBitmap()
         .build()
 
-    private val _state = MutableStateFlow(BreedsDetailsUiState())
-    val state = _state.asStateFlow()
-
     private val breedsDetailsDest = savedStateHandle.toRoute<BreedsDetailsDestination>()
+    private val _state = MutableStateFlow(
+        BreedsDetailsUiState(
+            recommendationReason = breedsDetailsDest.recommendationReason
+                ?.trim()
+                ?.takeIf(String::isNotEmpty),
+        ),
+    )
+    val state = _state.asStateFlow()
+    private var descriptionJob: Job? = null
 
     init {
         loadBreed()
@@ -69,7 +81,13 @@ class BreedsDetailsViewModel @Inject constructor(
                         dominantColorArgb = null,
                     )
                 }
-                loadBreed()
+                loadBreed(forceDescriptionRefresh = event.forced)
+            }
+
+            BreedsDetailsEvent.OnRetryDescription -> {
+                _state.value.breed?.let { breed ->
+                    loadDescription(breed = breed, forceRefresh = true)
+                }
             }
 
             is BreedsDetailsEvent.OnToggleBreedFavorite -> toggleBreedFavorite(event.name)
@@ -114,7 +132,7 @@ class BreedsDetailsViewModel @Inject constructor(
         }
     }
 
-    private fun loadBreed() {
+    private fun loadBreed(forceDescriptionRefresh: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update {
                 it.copy(
@@ -136,6 +154,14 @@ class BreedsDetailsViewModel @Inject constructor(
                 if (breed?.imageUrl != null) {
                     loadAndSegmentImage(breed.imageUrl)
                 }
+                breed?.let {
+                    loadDescription(
+                        breed = it,
+                        forceRefresh = forceDescriptionRefresh,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val message = e.message ?: "Unknown error"
                 Log.e(TAG, message)
@@ -147,6 +173,37 @@ class BreedsDetailsViewModel @Inject constructor(
                         error = message
                     )
                 }
+            }
+        }
+    }
+
+    private fun loadDescription(
+        breed: Breed,
+        forceRefresh: Boolean,
+    ) {
+        descriptionJob?.cancel()
+        descriptionJob = viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(description = BreedDescriptionUiState.Loading) }
+            try {
+                val description = breedDescriptionProvider.getDescription(
+                    BreedDescriptionRequest(
+                        breed = breed,
+                        forceRefresh = forceRefresh,
+                    ),
+                )
+                _state.update {
+                    it.copy(
+                        description = BreedDescriptionUiState.Content(description),
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val message = e.message ?: "Error generating breed description"
+                Log.e(TAG, message, e)
+                Firebase.crashlytics.log(message)
+                Firebase.crashlytics.recordException(e)
+                _state.update { it.copy(description = BreedDescriptionUiState.Error) }
             }
         }
     }

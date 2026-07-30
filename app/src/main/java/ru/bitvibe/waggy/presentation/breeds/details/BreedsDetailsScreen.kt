@@ -2,6 +2,10 @@ package ru.bitvibe.waggy.presentation.breeds.details
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,11 +15,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,11 +33,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +48,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -121,6 +134,11 @@ fun BreedsDetailsScreen(
                             favorites = state.favorites,
                             foregroundBitmap = state.foregroundBitmap,
                             dominantColorArgb = state.dominantColorArgb,
+                            recommendationReason = state.recommendationReason,
+                            descriptionState = state.description,
+                            onRetryDescription = {
+                                viewModel.onEvent(BreedsDetailsEvent.OnRetryDescription)
+                            },
                             onToggleBreedFavorite = { name ->
                                 viewModel.onEvent(BreedsDetailsEvent.OnToggleBreedFavorite(name))
                             },
@@ -145,6 +163,9 @@ fun BreedsDetailsContent(
     dominantColorArgb: Int?,
     onToggleBreedFavorite: (String) -> Unit,
     onToggleSubBreedFavorite: (String, String) -> Unit,
+    recommendationReason: String? = null,
+    descriptionState: BreedDescriptionUiState = BreedDescriptionUiState.Loading,
+    onRetryDescription: () -> Unit = {},
 ) {
     val targetPalette = photoPalette(dominantColorArgb)
     val palette = PhotoPalette(
@@ -198,6 +219,9 @@ fun BreedsDetailsContent(
                         favorites = favorites,
                         palette = palette,
                         onToggleSubBreedFavorite = onToggleSubBreedFavorite,
+                        recommendationReason = recommendationReason,
+                        descriptionState = descriptionState,
+                        onRetryDescription = onRetryDescription,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -222,6 +246,9 @@ fun BreedsDetailsContent(
                         favorites = favorites,
                         palette = palette,
                         onToggleSubBreedFavorite = onToggleSubBreedFavorite,
+                        recommendationReason = recommendationReason,
+                        descriptionState = descriptionState,
+                        onRetryDescription = onRetryDescription,
                     )
                 }
             }
@@ -235,6 +262,9 @@ private fun BreedInformation(
     favorites: List<Favorite>,
     palette: PhotoPalette,
     onToggleSubBreedFavorite: (String, String) -> Unit,
+    recommendationReason: String?,
+    descriptionState: BreedDescriptionUiState,
+    onRetryDescription: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -247,6 +277,13 @@ private fun BreedInformation(
             },
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.SemiBold,
+        )
+
+        AiBreedGuideCard(
+            recommendationReason = recommendationReason,
+            descriptionState = descriptionState,
+            palette = palette,
+            onRetry = onRetryDescription,
         )
 
         if (breed.subBreeds.isNotEmpty()) {
@@ -265,6 +302,188 @@ private fun BreedInformation(
             }
         }
     }
+}
+
+@Composable
+private fun AiBreedGuideCard(
+    recommendationReason: String?,
+    descriptionState: BreedDescriptionUiState,
+    palette: PhotoPalette,
+    onRetry: () -> Unit,
+) {
+    val shape = MaterialTheme.shapes.extraLarge
+    val borderGradient = Brush.linearGradient(
+        colors = listOf(
+            palette.accent.copy(alpha = 0.78f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.52f),
+            palette.accent.copy(alpha = 0.30f),
+        ),
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(borderGradient)
+            .padding(1.dp),
+    ) {
+        Surface(
+            shape = shape,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = palette.accent,
+                        contentColor = palette.onAccent,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ai_badge),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = stringResource(R.string.ai_breed_guide),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = stringResource(R.string.ai_breed_guide_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                recommendationReason
+                    ?.trim()
+                    ?.takeIf { reason -> reason.isNotEmpty() }
+                    ?.let { reason ->
+                        Surface(
+                            shape = MaterialTheme.shapes.large,
+                            color = palette.accent.copy(alpha = 0.10f),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(5.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.ai_recommendation_reason),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = palette.accent,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = reason,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                        }
+                        HorizontalDivider(color = palette.accent.copy(alpha = 0.18f))
+                    }
+
+                AnimatedContent(
+                    targetState = descriptionState,
+                    label = "ai_breed_description_state",
+                ) { state ->
+                    when (state) {
+                        BreedDescriptionUiState.Loading -> GeneratingDescription()
+                        is BreedDescriptionUiState.Content -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                Text(
+                                    text = stringResource(R.string.ai_breed_overview),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = palette.accent,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = state.description,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+
+                        BreedDescriptionUiState.Error -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = stringResource(R.string.ai_description_error_title),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = stringResource(R.string.ai_description_error_message),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                TextButton(onClick = onRetry) {
+                                    Text(stringResource(R.string.retry))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GeneratingDescription() {
+    val infiniteTransition = rememberInfiniteTransition(label = "ai_description_pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.42f,
+        targetValue = 0.88f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = AI_PULSE_MILLIS),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "ai_description_pulse_alpha",
+    )
+    val loadingDescription = stringResource(R.string.generating_ai_description)
+    Column(
+        modifier = Modifier.semantics { contentDescription = loadingDescription },
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Text(
+            text = loadingDescription,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = stringResource(R.string.generating_ai_description_details),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(
+            modifier = Modifier.alpha(pulseAlpha),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            DescriptionSkeletonLine(widthFraction = 0.96f)
+            DescriptionSkeletonLine(widthFraction = 0.84f)
+            DescriptionSkeletonLine(widthFraction = 0.62f)
+        }
+    }
+}
+
+@Composable
+private fun DescriptionSkeletonLine(widthFraction: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(widthFraction)
+            .height(10.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+    )
 }
 
 @Composable
@@ -325,3 +544,4 @@ private val DETAILS_TWO_PANE_BREAKPOINT = 840.dp
 private val DETAILS_MAX_WIDTH = 1200.dp
 private val DETAILS_COMPACT_MAX_WIDTH = 720.dp
 private const val PALETTE_TRANSITION_MILLIS = 420
+private const val AI_PULSE_MILLIS = 900

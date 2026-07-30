@@ -1,11 +1,11 @@
 package ru.bitvibe.waggy.data.local
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BreedsDao {
@@ -17,9 +17,17 @@ interface BreedsDao {
 
     @Transaction
     suspend fun refreshCache(breeds: List<BreedEntity>, subBreeds: List<SubBreedEntity>) {
+        deleteAllSubBreeds()
+        deleteAllBreeds()
         insertBreeds(breeds)
         insertSubBreeds(subBreeds)
     }
+
+    @Query("DELETE FROM sub_breeds")
+    suspend fun deleteAllSubBreeds()
+
+    @Query("DELETE FROM breeds")
+    suspend fun deleteAllBreeds()
 
     @Transaction
     @Query("SELECT * FROM breeds ORDER BY breedName ASC")
@@ -38,6 +46,10 @@ interface BreedsDao {
     @Transaction
     @Query("SELECT * FROM favorite_breeds")
     suspend fun getAllFavorites(): List<FavoriteEntity>
+
+    @Transaction
+    @Query("SELECT * FROM favorite_breeds ORDER BY breedName ASC, subBreedName ASC")
+    fun observeAllFavorites(): Flow<List<FavoriteEntity>>
 
     @Query("DELETE FROM favorite_breeds")
     suspend fun clearAllFavorites()

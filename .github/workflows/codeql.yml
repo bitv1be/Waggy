@@ -39,7 +39,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Prepare CI configuration
         shell: bash
@@ -78,7 +78,7 @@ jobs:
           JSON
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@v4.37.4
         with:
           languages: java-kotlin
           build-mode: manual
@@ -88,7 +88,7 @@ jobs:
         run: ./gradlew clean assembleDebug --no-daemon --stacktrace
 
       - name: Analyze source
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@v4.37.4
         with:
           category: /language:java-kotlin
 

@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 import ru.bitvibe.waggy.BuildConfig
 import ru.bitvibe.waggy.data.update.AppUpdateDownloader
 import ru.bitvibe.waggy.domain.models.Favorite
+import ru.bitvibe.waggy.domain.preferences.ThemeMode
 import ru.bitvibe.waggy.domain.preferences.ThemePreferences
 import ru.bitvibe.waggy.domain.preferences.WidgetPreferences
 import ru.bitvibe.waggy.domain.usecase.CheckForAppUpdateUseCase
@@ -50,7 +52,7 @@ class SettingsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SettingsUiState())
     val state = _state.asStateFlow()
 
-    val isDarkMode: StateFlow<Boolean?> = themePreferences.isDarkMode
+    val isDarkMode: Flow<ThemeMode> = themePreferences.themeMode
     val widgetPeriodMinutes: StateFlow<Long> = widgetPreferences.updatePeriodMinutes
 
     init {
@@ -62,7 +64,7 @@ class SettingsViewModel @Inject constructor(
             is SettingsEvent.OnRefresh -> loadFavorites()
             is SettingsEvent.OnRemove -> removeFavorite(event.favorite)
             is SettingsEvent.OnClearAll -> clearAllFavorites()
-            is SettingsEvent.OnSetTheme -> setThemeMode(event.isDark)
+            is SettingsEvent.OnSetTheme -> setThemeMode(event.mode)
             is SettingsEvent.OnSetWidgetPeriod -> setWidgetPeriod(event.minutes)
             SettingsEvent.OnCheckForUpdate -> checkForUpdate()
             SettingsEvent.OnDownloadUpdate -> downloadUpdate()
@@ -180,8 +182,7 @@ class SettingsViewModel @Inject constructor(
 
     private fun markInstallLaunchFailed() {
         _state.update { state ->
-            val updateState = state.appUpdateState
-            val downloaded = when (updateState) {
+            val downloaded = when (val updateState = state.appUpdateState) {
                 is AppUpdateUiState.ReadyToInstall -> AppUpdateUiState.Downloaded(
                     update = updateState.update,
                     apkUri = updateState.apkUri,
@@ -272,9 +273,9 @@ class SettingsViewModel @Inject constructor(
         loadFavorites()
     }
 
-    private fun setThemeMode(isDark: Boolean?) {
+    private fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch(Dispatchers.IO) {
-            themePreferences.setDarkMode(isDark)
+            themePreferences.setThemeMode(mode)
         }
     }
 

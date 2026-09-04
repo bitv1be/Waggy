@@ -11,6 +11,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
+import ru.bitvibe.waggy.domain.preferences.ThemeMode
 import ru.bitvibe.waggy.domain.preferences.ThemePreferences
 import ru.bitvibe.waggy.presentation.common.AppRoot
 import ru.bitvibe.waggy.presentation.common.WaggyTheme
@@ -27,8 +28,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val isDarkTheme by themePreferences.isDarkMode.collectAsStateWithLifecycle()
-            val useDarkTheme = isDarkTheme ?: isSystemInDarkTheme()
+            val themeMode by themePreferences.themeMode.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            val useDarkTheme = when (themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
 
             DisposableEffect(useDarkTheme) {
                 enableEdgeToEdge(

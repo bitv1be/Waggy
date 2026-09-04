@@ -11,10 +11,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -48,6 +48,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.bitvibe.waggy.R
 import ru.bitvibe.waggy.domain.models.Favorite
+import ru.bitvibe.waggy.domain.preferences.ThemeMode
 import ru.bitvibe.waggy.presentation.settings.widgets.AboutSettingsCard
 import ru.bitvibe.waggy.presentation.settings.widgets.FavoriteItemCard
 import ru.bitvibe.waggy.presentation.settings.widgets.ThemeSettingsCard
@@ -59,7 +60,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val isDarkTheme by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val isDarkTheme by viewModel.isDarkMode.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
     val widgetPeriodMinutes by viewModel.widgetPeriodMinutes.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -315,7 +316,7 @@ private fun FavoritesSettingsCard(
 
 private fun Context.canInstallUnknownApps(): Boolean {
     return Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
-        packageManager.canRequestPackageInstalls()
+            packageManager.canRequestPackageInstalls()
 }
 
 private val SETTINGS_COLUMN_MIN_WIDTH = 340.dp

@@ -1,30 +1,34 @@
 package ru.bitvibe.waggy.data.preferences
 
-import android.content.Context
-import android.content.SharedPreferences
-import androidx.core.content.edit
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import ru.bitvibe.waggy.domain.preferences.ThemeMode
 import ru.bitvibe.waggy.domain.preferences.ThemePreferences
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ThemePreferencesImpl(
-    context: Context
+@Singleton
+class ThemePreferencesImpl @Inject constructor(
+    @ThemeDataStore private val dataStore: DataStore<Preferences>
 ) : ThemePreferences {
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+    private companion object {
+        val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+    }
 
-    private val _isDarkMode = MutableStateFlow<Boolean?>(
-        if (prefs.contains("is_dark_mode")) prefs.getBoolean("is_dark_mode", false) else null
-    )
-    override val isDarkMode: StateFlow<Boolean?> = _isDarkMode.asStateFlow()
-
-    override fun setDarkMode(isDark: Boolean?) {
-        if (isDark == null) {
-            prefs.edit { remove("is_dark_mode") }
-        } else {
-            prefs.edit { putBoolean("is_dark_mode", isDark) }
+    override val themeMode: Flow<ThemeMode> = dataStore.data
+        .map { prefs ->
+            prefs[KEY_THEME_MODE]
+                ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
+                ?: ThemeMode.SYSTEM
         }
-        _isDarkMode.value = isDark
+        .distinctUntilChanged()
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        dataStore.edit { it[KEY_THEME_MODE] = mode.name }
     }
 }

@@ -1,8 +1,14 @@
 package ru.bitvibe.waggy.domain.preferences
 
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+
+enum class ThemeMode {
+    LIGHT,
+    DARK,
+    SYSTEM,
+}
 
 interface ThemePreferences {
-    val isDarkMode: StateFlow<Boolean?>
-    fun setDarkMode(isDark: Boolean?)
+    val themeMode: Flow<ThemeMode>
+    suspend fun setThemeMode(mode: ThemeMode)
 }

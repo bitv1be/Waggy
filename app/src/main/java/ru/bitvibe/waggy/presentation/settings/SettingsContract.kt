@@ -2,6 +2,7 @@ package ru.bitvibe.waggy.presentation.settings
 
 import ru.bitvibe.waggy.domain.models.AppUpdate
 import ru.bitvibe.waggy.domain.models.Favorite
+import ru.bitvibe.waggy.domain.preferences.ThemeMode
 
 data class SettingsUiState(
     val favorites: List<Favorite> = emptyList(),
@@ -14,7 +15,7 @@ sealed interface SettingsEvent {
     data object OnRefresh : SettingsEvent
     data class OnRemove(val favorite: Favorite) : SettingsEvent
     data object OnClearAll : SettingsEvent
-    data class OnSetTheme(val isDark: Boolean?) : SettingsEvent
+    data class OnSetTheme(val mode: ThemeMode) : SettingsEvent
     data class OnSetWidgetPeriod(val minutes: Long) : SettingsEvent
     data object OnCheckForUpdate : SettingsEvent
     data object OnDownloadUpdate : SettingsEvent

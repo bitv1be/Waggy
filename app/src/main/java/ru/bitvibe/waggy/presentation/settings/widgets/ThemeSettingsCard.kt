@@ -19,11 +19,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import ru.bitvibe.waggy.R
+import ru.bitvibe.waggy.domain.preferences.ThemeMode
 
 @Composable
 fun ThemeSettingsCard(
-    isDarkTheme: Boolean?,
-    onSetTheme: (Boolean?) -> Unit,
+    isDarkTheme: ThemeMode,
+    onSetTheme: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -51,18 +52,18 @@ fun ThemeSettingsCard(
             )
             SettingsRadioOption(
                 text = stringResource(R.string.theme_system),
-                selected = isDarkTheme == null,
-                onClick = { onSetTheme(null) },
+                selected = isDarkTheme == ThemeMode.SYSTEM,
+                onClick = { onSetTheme(ThemeMode.SYSTEM) },
             )
             SettingsRadioOption(
                 text = stringResource(R.string.theme_light),
-                selected = isDarkTheme == false,
-                onClick = { onSetTheme(false) },
+                selected = isDarkTheme == ThemeMode.LIGHT,
+                onClick = { onSetTheme(ThemeMode.LIGHT) },
             )
             SettingsRadioOption(
                 text = stringResource(R.string.theme_dark),
-                selected = isDarkTheme == true,
-                onClick = { onSetTheme(true) },
+                selected = isDarkTheme == ThemeMode.DARK,
+                onClick = { onSetTheme(ThemeMode.DARK) },
             )
         }
     }

@@ -112,6 +112,9 @@ jobs:
             cp .env.example .env
           fi
 
+      - name: Grant execute permissions for gradlew
+        run: chmod +x gradlew
+
       - name: Test, lint, and build signed release
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/waggy-signing/release.jks

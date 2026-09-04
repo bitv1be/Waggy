@@ -1,14 +1,13 @@
 package ru.bitvibe.waggy
 
 import android.graphics.Color
-import android.os.Build
 import android.os.Bundle
-import androidx.activity.SystemBarStyle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,14 +25,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
-        }
+
         setContent {
             val isDarkTheme by themePreferences.isDarkMode.collectAsStateWithLifecycle()
             val useDarkTheme = isDarkTheme ?: isSystemInDarkTheme()
 
-            SideEffect {
+            DisposableEffect(useDarkTheme) {
                 enableEdgeToEdge(
                     statusBarStyle = SystemBarStyle.auto(
                         lightScrim = Color.TRANSPARENT,
@@ -46,9 +43,7 @@ class MainActivity : ComponentActivity() {
                         detectDarkMode = { useDarkTheme },
                     ),
                 )
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    window.isNavigationBarContrastEnforced = false
-                }
+                onDispose {}
             }
 
             WaggyTheme(darkTheme = useDarkTheme) {

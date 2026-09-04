@@ -3,11 +3,12 @@ version: 2
 updates:
   - package-ecosystem: gradle
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
       time: "06:00"
-      timezone: Europe/Amsterdam
+      timezone: Europe/Samara
     open-pull-requests-limit: 5
     groups:
       gradle-dependencies:
@@ -18,11 +19,12 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: tuesday
       time: "06:00"
-      timezone: Europe/Amsterdam
+      timezone: Europe/Samara
     open-pull-requests-limit: 5
     groups:
       github-actions:
